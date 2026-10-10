@@ -57,7 +57,10 @@ export function Dashboard({ data, isFetching }: DashboardProps): JSX.Element {
         </CardHeader>
         <CardContent className="space-y-3">
           {data.breakdown.length === 0 ? (
-            <p className="text-sm text-ink-muted">No holdings yet.</p>
+            <p className="text-sm text-ink-muted">
+              No holdings yet — use <span className="font-medium text-ink">Add holding</span> to
+              start.
+            </p>
           ) : (
             data.breakdown.map((row) => (
               <div key={row.class} className="space-y-1.5">

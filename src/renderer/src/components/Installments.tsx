@@ -42,14 +42,14 @@ export function Installments(): JSX.Element {
   const [liabilityOpen, setLiabilityOpen] = useState(false)
   const [editingLiability, setEditingLiability] = useState<Liability | null>(null)
 
-  const [expenseAmount, setExpenseAmount] = useState('50')
+  const [expenseAmount, setExpenseAmount] = useState('')
   const [expenseNote, setExpenseNote] = useState('')
   const [categoryId, setCategoryId] = useState('')
   const [expenseDate, setExpenseDate] = useState(todayInMonth(month))
   const [liabilityId, setLiabilityId] = useState('')
   const [formError, setFormError] = useState<string | null>(null)
 
-  const [incomeAmount, setIncomeAmount] = useState('8000')
+  const [incomeAmount, setIncomeAmount] = useState('')
   const [incomeNote, setIncomeNote] = useState('')
 
   const resolvedCategoryId = useMemo(() => {

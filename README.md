@@ -17,7 +17,10 @@ Other scripts:
 npm run typecheck
 npm run build
 npm start
+npm run db:reset   # wipe local SQLite (explicit; never auto)
 ```
+
+A fresh database starts **empty** (no demo holdings, loans, expenses, or income). Only default expense category labels are inserted so the expense form has options.
 
 ### Where your data lives
 
@@ -27,7 +30,9 @@ SQLite file: Electron `userData` / `networth.sqlite`
 | --- | --- |
 | Linux | `~/.config/savings-net-worth/networth.sqlite` |
 | macOS | `~/Library/Application Support/savings-net-worth/networth.sqlite` |
-| Windows | `%APPDATA%\savings-net-worth\networth.sqlite` |
+| Windows | `%APPDATA%\savings-net-worth/networth.sqlite` |
+
+To clear an already-seeded local DB: quit the app, run `npm run db:reset`, then `npm run dev` again (or delete `networth.sqlite` and its `-wal`/`-shm` siblings at the path above).
 
 Enter amounts in normal units in the UI (e.g. `1500.50`); Zod converts to grosze/cents before save.
 

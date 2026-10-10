@@ -1,12 +1,7 @@
 import Database from 'better-sqlite3'
 import { join } from 'path'
 import { app } from 'electron'
-import {
-  SCHEMA_SQL,
-  SEED_ASSETS_SQL,
-  SEED_CATEGORIES_SQL,
-  SEED_LIABILITIES_SQL
-} from './schema'
+import { DEFAULT_CATEGORIES_SQL, SCHEMA_SQL } from './schema'
 import type { Asset, AssetClass, IncomeAllocation, IncomeEntry } from '@shared/types'
 import { QUANTITY_SCALE } from '@shared/types'
 import { randomUUID } from 'crypto'
@@ -26,88 +21,15 @@ export function initDatabase(): Database.Database {
   db.pragma('journal_mode = WAL')
   db.exec(SCHEMA_SQL)
 
-  const assetCount = db.prepare('SELECT COUNT(*) AS c FROM assets').get() as { c: number }
-  if (assetCount.c === 0) {
-    db.exec(SEED_ASSETS_SQL)
-  }
-
-  const liabilityCount = db.prepare('SELECT COUNT(*) AS c FROM liabilities').get() as { c: number }
-  if (liabilityCount.c === 0) {
-    db.exec(SEED_LIABILITIES_SQL)
-  }
-
+  // Categories only — holdings, loans, expenses, and income stay empty until the user adds them.
   const categoryCount = db.prepare('SELECT COUNT(*) AS c FROM expense_categories').get() as {
     c: number
   }
   if (categoryCount.c === 0) {
-    db.exec(SEED_CATEGORIES_SQL)
+    db.exec(DEFAULT_CATEGORIES_SQL)
   }
-
-  seedDemoExpensesIfEmpty(db)
 
   return db
-}
-
-function seedDemoExpensesIfEmpty(database: Database.Database): void {
-  const expenseCount = database.prepare('SELECT COUNT(*) AS c FROM expense_entries').get() as {
-    c: number
-  }
-  if (expenseCount.c > 0) return
-
-  const month = new Date().toISOString().slice(0, 7)
-  const day = (d: number): string => `${month}-${String(d).padStart(2, '0')}`
-  const now = new Date().toISOString()
-  const insert = database.prepare(
-    `INSERT INTO expense_entries (
-      id, category_id, date, amount_minor, currency, note, liability_id, created_at
-    ) VALUES (@id, @categoryId, @date, @amountMinor, @currency, @note, @liabilityId, @createdAt)`
-  )
-
-  const rows = [
-    {
-      id: 'c1111111-1111-4111-8111-111111111111',
-      categoryId: 'b1111111-1111-4111-8111-111111111111',
-      date: day(3),
-      amountMinor: 28750,
-      currency: 'PLN',
-      note: 'Weekly groceries',
-      liabilityId: null as string | null
-    },
-    {
-      id: 'c2222222-2222-4222-8222-222222222222',
-      categoryId: 'b2222222-2222-4222-8222-222222222222',
-      date: day(5),
-      amountMinor: 12000,
-      currency: 'PLN',
-      note: 'Fuel',
-      liabilityId: null
-    },
-    {
-      id: 'c3333333-3333-4333-8333-333333333333',
-      categoryId: 'b4444444-4444-4444-8444-444444444444',
-      date: day(1),
-      amountMinor: 32000,
-      currency: 'PLN',
-      note: 'Electricity',
-      liabilityId: null
-    },
-    {
-      id: 'c4444444-4444-4444-8444-444444444444',
-      categoryId: 'b5555555-5555-4555-8555-555555555555',
-      date: day(8),
-      amountMinor: 20000,
-      currency: 'PLN',
-      note: 'Phone installment',
-      liabilityId: 'a1111111-1111-4111-8111-111111111111'
-    }
-  ]
-
-  const tx = database.transaction(() => {
-    for (const r of rows) {
-      insert.run({ ...r, createdAt: now })
-    }
-  })
-  tx()
 }
 
 export function closeDatabase(): void {

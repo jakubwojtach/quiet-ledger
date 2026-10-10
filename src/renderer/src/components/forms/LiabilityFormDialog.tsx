@@ -30,8 +30,8 @@ export function LiabilityFormDialog({
 
   const [name, setName] = useState('')
   const [provider, setProvider] = useState('')
-  const [principal, setPrincipal] = useState('1000')
-  const [monthlyPayment, setMonthlyPayment] = useState('100')
+  const [principal, setPrincipal] = useState('')
+  const [monthlyPayment, setMonthlyPayment] = useState('')
   const [currency, setCurrency] = useState('PLN')
   const [nextDueDate, setNextDueDate] = useState('')
   const [notes, setNotes] = useState('')
@@ -43,8 +43,8 @@ export function LiabilityFormDialog({
     if (!liability) {
       setName('')
       setProvider('')
-      setPrincipal('1000')
-      setMonthlyPayment('100')
+      setPrincipal('')
+      setMonthlyPayment('')
       setCurrency('PLN')
       setNextDueDate('')
       setNotes('')
