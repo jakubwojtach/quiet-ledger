@@ -4,7 +4,7 @@ import { HoldingsList } from '@renderer/components/HoldingsList'
 import { AssetDetail } from '@renderer/components/AssetDetail'
 import { Installments } from '@renderer/components/Installments'
 import { AssetFormDialog } from '@renderer/components/forms/AssetFormDialog'
-import { useDashboard, useDeleteAsset } from '@renderer/hooks/useNetWorth'
+import { useDashboard, useDatabaseInfo, useDeleteAsset } from '@renderer/hooks/useNetWorth'
 import type { Asset } from '@shared/types'
 import { Button } from '@renderer/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@renderer/components/ui/card'
@@ -185,6 +185,7 @@ function Shell({
   const [compact, setCompact] = useState(false)
   const sentinelRef = useRef<HTMLDivElement>(null)
   const copy = TAB_COPY[tab]
+  const { data: dbInfo } = useDatabaseInfo()
 
   useEffect(() => {
     const sentinel = sentinelRef.current
@@ -271,6 +272,18 @@ function Shell({
             Installments
           </TabButton>
         </nav>
+        <p
+          className="mt-2 truncate font-mono text-[11px] leading-4 text-ink-muted"
+          data-testid="sqlite-path"
+          title={dbInfo?.dbPath}
+        >
+          SQLite: {dbInfo?.dbPath ?? 'opening local database…'}
+        </p>
+        {dbInfo && dbInfo.legacyDbPaths.length > 0 && (
+          <p className="mt-1 text-[11px] leading-4 text-accent" data-testid="legacy-sqlite-paths">
+            Not opened (remove with npm run db:reset): {dbInfo.legacyDbPaths.join(' · ')}
+          </p>
+        )}
       </header>
       <div className="flex flex-col gap-6 py-6">{children}</div>
     </div>

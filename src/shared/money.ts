@@ -26,3 +26,11 @@ export function majorToMinor(major: number): MinorUnits {
 export function minorToMajor(minor: MinorUnits): number {
   return minor / 100
 }
+
+export function formatGainPercent(percent: number, locale = 'pl-PL'): string {
+  const sign = percent > 0 ? '+' : ''
+  return `${sign}${percent.toLocaleString(locale, {
+    minimumFractionDigits: 1,
+    maximumFractionDigits: 1
+  })}%`
+}

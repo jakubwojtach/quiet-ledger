@@ -1,5 +1,5 @@
-appId: com.electron.app
-productName: ev-scaffold
+appId: com.savings.networth
+productName: Savings Net Worth
 directories:
   buildResources: build
 files:
@@ -12,7 +12,7 @@ files:
 asarUnpack:
   - resources/**
 win:
-  executableName: ev-scaffold
+  executableName: savings-net-worth
 nsis:
   artifactName: ${name}-${version}-setup.${ext}
   shortcutName: ${productName}

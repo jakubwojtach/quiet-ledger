@@ -29,6 +29,8 @@ export interface AssetBase {
   class: AssetClass
   name: string
   notes: string | null
+  /** Wrapper or institution, e.g. IKE, IKZE Kaja, Broker USD */
+  account: string | null
   createdAt: string
   updatedAt: string
 }
@@ -46,13 +48,23 @@ export interface BondDetails {
   nominalMinor: MinorUnits
   unitValueMinor: MinorUnits
   currency: CurrencyCode
+  /**
+   * Current value from the bond account statement. Polish retail treasury bonds do not trade,
+   * so when set this wins over nominal × unit value.
+   */
+  statementValueMinor: MinorUnits | null
+  valuedOn: string | null
 }
 
 export interface RetirementDetails {
   /** Units scaled by 1_000_000 */
   unitsScaled: number
+  /** Last known unit price; replaced by the live NAV when fundCode is set. */
   unitPriceMinor: MinorUnits
   currency: CurrencyCode
+  /** analizy.pl fund code, e.g. ING80K */
+  fundCode: string | null
+  costBasisMinor: MinorUnits | null
 }
 
 export interface SavingsDetails {
@@ -60,10 +72,15 @@ export interface SavingsDetails {
   currency: CurrencyCode
 }
 
+export type ValueSource = 'estimate' | 'manual'
+
 export interface ManualPropertyDetails {
   valueMinor: MinorUnits
   currency: CurrencyCode
   valuedOn: string
+  /** What you paid, in `currency` minor units. Null when unknown. */
+  costBasisMinor: MinorUnits | null
+  valueSource: ValueSource
 }
 
 export type AssetDetails =
@@ -85,8 +102,18 @@ export interface ValuedAsset {
   nativeCurrency: CurrencyCode
   /** PLN market value in grosze */
   plnValueMinor: MinorUnits
+  /** Paid amount converted to PLN, when the asset records what was paid. */
+  costBasisPlnMinor: MinorUnits | null
+  /** Worth now minus paid, in PLN grosze. */
+  gainPlnMinor: MinorUnits | null
+  /** Gain as a percent of paid. */
+  gainPercent: number | null
+  /** Live or last-known unit price in major units of nativeCurrency (ETF, fund). */
+  unitPrice: number | null
   lastUpdated: string
   priceStale: boolean
+  /** No quote has ever been fetched; value is 0 and should not be trusted. */
+  priceMissing: boolean
 }
 
 export interface ClassBreakdown {

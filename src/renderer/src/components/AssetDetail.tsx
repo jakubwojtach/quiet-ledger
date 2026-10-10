@@ -1,5 +1,6 @@
 import type { JSX } from 'react'
-import { formatMinorUnits } from '@shared/money'
+import { formatGainPercent, formatMinorUnits } from '@shared/money'
+import { catalogEstimateFor } from '@shared/valuationFormulas'
 import { ASSET_CLASS_LABELS, type Asset, type ValuedAsset } from '@shared/types'
 import { useAsset } from '@renderer/hooks/useNetWorth'
 import { Button } from '@renderer/components/ui/button'
@@ -70,7 +71,10 @@ export function AssetDetail({
     <Card data-testid="asset-detail">
       <CardHeader className="flex flex-row items-start justify-between gap-3">
         <div>
-          <CardDescription>{ASSET_CLASS_LABELS[asset.class]}</CardDescription>
+          <CardDescription>
+            {ASSET_CLASS_LABELS[asset.class]}
+            {asset.account ? ` · ${asset.account}` : ''}
+          </CardDescription>
           <CardTitle className="font-display text-2xl">{asset.name}</CardTitle>
         </div>
         <div className="flex gap-2">
@@ -104,36 +108,58 @@ export function AssetDetail({
                 : data.lastUpdated
             }
           />
-          <Stat label="Price status" value={data.priceStale ? 'Last known (stale)' : 'Fresh'} />
+          <Stat
+            label="Price status"
+            value={
+              data.priceMissing
+                ? 'No quote yet'
+                : data.priceStale
+                  ? 'Last known (stale)'
+                  : 'Fresh'
+            }
+          />
         </div>
 
         <dl className="space-y-2 border-t border-line pt-4 text-sm">
           {asset.class === 'etf' && (
             <>
-              <Row label="Ticker" value={asset.ticker} />
+              <Row label="Yahoo symbol" value={asset.ticker} />
+              {data.unitPrice != null && (
+                <Row label="Price" value={formatPrice(data.unitPrice, data.nativeCurrency)} />
+              )}
               <Row label="Quantity" value={(asset.quantityScaled / 1_000_000).toLocaleString('pl-PL')} />
-              <Row
-                label="Cost basis"
-                value={formatMinorUnits(asset.costBasisMinor, asset.costCurrency)}
-              />
+              <Row label="Paid" value={formatMinorUnits(asset.costBasisMinor, asset.costCurrency)} />
+              <GainRow data={data} />
             </>
           )}
           {asset.class === 'bond' && (
             <>
-              <Row label="Nominal" value={formatMinorUnits(asset.nominalMinor, asset.currency)} />
-              <Row
-                label="Unit value"
-                value={`${(asset.unitValueMinor / 100).toFixed(2)} / 100`}
-              />
+              <Row label="Nominal (paid)" value={formatMinorUnits(asset.nominalMinor, asset.currency)} />
+              {asset.statementValueMinor != null ? (
+                <Row
+                  label="Statement value"
+                  value={formatMinorUnits(asset.statementValueMinor, asset.currency)}
+                />
+              ) : (
+                <Row
+                  label="Unit value"
+                  value={`${(asset.unitValueMinor / 100).toFixed(2)} / 100`}
+                />
+              )}
+              <GainRow data={data} />
             </>
           )}
           {asset.class === 'retirement' && (
             <>
+              {asset.fundCode && <Row label="analizy.pl code" value={asset.fundCode} />}
               <Row label="Units" value={(asset.unitsScaled / 1_000_000).toLocaleString('pl-PL')} />
-              <Row
-                label="Unit price"
-                value={formatMinorUnits(asset.unitPriceMinor, asset.currency)}
-              />
+              {data.unitPrice != null && (
+                <Row label="Unit price" value={formatPrice(data.unitPrice, data.nativeCurrency)} />
+              )}
+              {asset.costBasisMinor != null && (
+                <Row label="Paid" value={formatMinorUnits(asset.costBasisMinor, asset.currency)} />
+              )}
+              <GainRow data={data} />
             </>
           )}
           {(asset.class === 'savings_usd' || asset.class === 'savings_pln') && (
@@ -141,8 +167,25 @@ export function AssetDetail({
           )}
           {(asset.class === 'apartment' || asset.class === 'land' || asset.class === 'car') && (
             <>
-              <Row label="Manual value" value={formatMinorUnits(asset.valueMinor, asset.currency)} />
-              <Row label="Valued on" value={asset.valuedOn} />
+              <Row
+                label="Paid"
+                value={
+                  asset.costBasisMinor == null
+                    ? '—'
+                    : formatMinorUnits(asset.costBasisMinor, asset.currency)
+                }
+              />
+              <Row label="Worth now" value={formatMinorUnits(data.nativeValueMinor, data.nativeCurrency)} />
+              <Row
+                label="Gain"
+                value={
+                  data.gainPlnMinor == null || data.gainPercent == null
+                    ? '—'
+                    : `${formatMinorUnits(data.gainPlnMinor, 'PLN')} (${formatGainPercent(data.gainPercent)})`
+                }
+              />
+              <Row label="Valued on" value={data.lastUpdated} />
+              {asset.valueSource === 'estimate' && <CatalogRows assetId={asset.id} />}
             </>
           )}
         </dl>
@@ -157,6 +200,40 @@ function Stat({ label, value }: { label: string; value: string }): JSX.Element {
       <div className="text-xs text-ink-muted">{label}</div>
       <div className="mt-1 font-medium tabular-nums">{value}</div>
     </div>
+  )
+}
+
+function formatPrice(price: number, currency: string): string {
+  return new Intl.NumberFormat('pl-PL', {
+    style: 'currency',
+    currency,
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 4
+  }).format(price)
+}
+
+function GainRow({ data }: { data: ValuedAsset }): JSX.Element | null {
+  if (data.gainPlnMinor == null || data.gainPercent == null) return null
+  return (
+    <Row
+      label="Gain (PLN)"
+      value={`${formatMinorUnits(data.gainPlnMinor, 'PLN')} (${formatGainPercent(data.gainPercent)})`}
+    />
+  )
+}
+
+function CatalogRows({ assetId }: { assetId: string }): JSX.Element | null {
+  const estimate = catalogEstimateFor(assetId)
+  if (!estimate) return null
+  return (
+    <>
+      <Row
+        label="Catalog"
+        value={`${estimate.catalog.plnPerM2.toLocaleString('pl-PL')} zł/m² · ${estimate.catalog.asOf}`}
+      />
+      <Row label="Formula" value={estimate.formula} />
+      <p className="text-xs text-ink-muted">{estimate.catalog.source}</p>
+    </>
   )
 }
 

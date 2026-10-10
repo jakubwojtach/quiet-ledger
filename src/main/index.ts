@@ -2,8 +2,12 @@ import { app, shell, BrowserWindow, session } from 'electron'
 import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import icon from '../../resources/icon.png?asset'
+import { APP_ID, PRODUCT_NAME } from '@shared/dataDirs'
 import { closeDatabase, initDatabase } from './db'
 import { registerIpcHandlers } from './ipc/handlers'
+import { resolveUserDataDir } from './userDataDir'
+
+app.setPath('userData', resolveUserDataDir())
 
 function createWindow(): void {
   const mainWindow = new BrowserWindow({
@@ -13,7 +17,7 @@ function createWindow(): void {
     minHeight: 560,
     show: false,
     autoHideMenuBar: true,
-    title: 'Net Worth',
+    title: PRODUCT_NAME,
     ...(process.platform === 'linux' ? { icon } : {}),
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
@@ -41,7 +45,7 @@ function createWindow(): void {
 }
 
 app.whenReady().then(() => {
-  electronApp.setAppUserModelId('com.savings.networth')
+  electronApp.setAppUserModelId(APP_ID)
 
   // Dev needs unsafe-inline/eval + ws for Vite/React refresh; prod stays strict.
   const csp = is.dev

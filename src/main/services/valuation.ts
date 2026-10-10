@@ -1,7 +1,7 @@
 import { listAssets, getAssetById, QUANTITY_SCALE } from '../db'
 import { listLiabilities } from '../db/liabilities'
 import { convertToPlnMinor } from './fx'
-import { getEquityPrice } from './prices'
+import { getEquityPrice, getFundNav } from './prices'
 import { emitLocalEvent } from '../hooks/localEvents'
 import {
   ASSET_CLASS_LABELS,
@@ -13,30 +13,78 @@ import {
   type ValuedAsset,
   type ValuedLiability
 } from '@shared/types'
+import { catalogEstimateFor, type CatalogEstimate } from '@shared/valuationFormulas'
+
+type MarketValue = Omit<ValuedAsset, 'costBasisPlnMinor' | 'gainPlnMinor' | 'gainPercent'>
+
+function activeEstimate(
+  asset: Extract<Asset, { class: 'apartment' | 'land' | 'car' }>
+): CatalogEstimate | null {
+  return asset.valueSource === 'estimate' ? catalogEstimateFor(asset.id) : null
+}
 
 async function valueAsset(asset: Asset): Promise<ValuedAsset> {
+  const market = await valueAssetMarket(asset)
+  return attachGain(asset, market)
+}
+
+/** What was paid, in its own currency. Cash has no cost basis. */
+function costBasisOf(asset: Asset): { minor: number; currency: string } | null {
+  switch (asset.class) {
+    case 'etf':
+      return { minor: asset.costBasisMinor, currency: asset.costCurrency }
+    case 'bond':
+      return { minor: asset.nominalMinor, currency: asset.currency }
+    case 'retirement':
+    case 'apartment':
+    case 'land':
+    case 'car':
+      return asset.costBasisMinor == null
+        ? null
+        : { minor: asset.costBasisMinor, currency: asset.currency }
+    default:
+      return null
+  }
+}
+
+async function attachGain(asset: Asset, market: MarketValue): Promise<ValuedAsset> {
+  const empty = { ...market, costBasisPlnMinor: null, gainPlnMinor: null, gainPercent: null }
+  const basis = costBasisOf(asset)
+  if (!basis || market.priceMissing) return empty
+
+  const cost = await convertToPlnMinor(basis.minor, basis.currency)
+  const gainPlnMinor = market.plnValueMinor - cost.plnMinor
+  return {
+    ...market,
+    costBasisPlnMinor: cost.plnMinor,
+    gainPlnMinor,
+    gainPercent: cost.plnMinor === 0 ? null : (gainPlnMinor / cost.plnMinor) * 100,
+    priceStale: market.priceStale || cost.stale
+  }
+}
+
+async function valueAssetMarket(asset: Asset): Promise<MarketValue> {
   switch (asset.class) {
     case 'etf': {
       const quote = await getEquityPrice(asset.ticker)
       const qty = asset.quantityScaled / QUANTITY_SCALE
-      const nativeValueMinor = Math.round(qty * quote.priceMinor)
-      const { plnMinor, stale, fetchedAt } = await convertToPlnMinor(
-        nativeValueMinor,
-        quote.currency
-      )
+      const nativeValueMinor = Math.round(qty * quote.price * 100)
+      const { plnMinor, stale } = await convertToPlnMinor(nativeValueMinor, quote.currency)
       return {
         asset,
         nativeValueMinor,
         nativeCurrency: quote.currency,
         plnValueMinor: plnMinor,
-        lastUpdated: fetchedAt,
-        priceStale: quote.stale || stale
+        unitPrice: quote.missing ? null : quote.price,
+        lastUpdated: quote.fetchedAt,
+        priceStale: quote.stale || stale,
+        priceMissing: quote.missing
       }
     }
     case 'bond': {
-      const faceMajor = asset.nominalMinor / 100
-      const pricePercent = asset.unitValueMinor / 100
-      const nativeValueMinor = Math.round(faceMajor * (pricePercent / 100) * 100)
+      const nativeValueMinor =
+        asset.statementValueMinor ??
+        Math.round((asset.nominalMinor * asset.unitValueMinor) / 10_000)
       const { plnMinor, stale, fetchedAt } = await convertToPlnMinor(
         nativeValueMinor,
         asset.currency
@@ -46,24 +94,28 @@ async function valueAsset(asset: Asset): Promise<ValuedAsset> {
         nativeValueMinor,
         nativeCurrency: asset.currency,
         plnValueMinor: plnMinor,
-        lastUpdated: fetchedAt,
-        priceStale: stale
+        unitPrice: null,
+        lastUpdated: asset.valuedOn ?? fetchedAt,
+        priceStale: stale,
+        priceMissing: false
       }
     }
     case 'retirement': {
       const units = asset.unitsScaled / QUANTITY_SCALE
-      const nativeValueMinor = Math.round(units * asset.unitPriceMinor)
-      const { plnMinor, stale, fetchedAt } = await convertToPlnMinor(
-        nativeValueMinor,
-        asset.currency
-      )
+      const nav = asset.fundCode ? await getFundNav(asset.fundCode) : null
+      const live = nav && !nav.missing ? nav : null
+      const price = live ? live.price : asset.unitPriceMinor / 100
+      const nativeValueMinor = Math.round(units * price * 100)
+      const { plnMinor, stale } = await convertToPlnMinor(nativeValueMinor, asset.currency)
       return {
         asset,
         nativeValueMinor,
         nativeCurrency: asset.currency,
         plnValueMinor: plnMinor,
-        lastUpdated: asset.updatedAt > fetchedAt ? asset.updatedAt : fetchedAt,
-        priceStale: stale
+        unitPrice: price,
+        lastUpdated: live ? live.fetchedAt : asset.updatedAt,
+        priceStale: stale || (nav != null && (nav.stale || nav.missing)),
+        priceMissing: false
       }
     }
     case 'savings_usd':
@@ -77,21 +129,27 @@ async function valueAsset(asset: Asset): Promise<ValuedAsset> {
         nativeValueMinor: asset.amountMinor,
         nativeCurrency: asset.currency,
         plnValueMinor: plnMinor,
+        unitPrice: null,
         lastUpdated: stale ? fetchedAt : asset.updatedAt,
-        priceStale: stale
+        priceStale: stale,
+        priceMissing: false
       }
     }
     case 'apartment':
     case 'land':
     case 'car': {
-      const { plnMinor, stale } = await convertToPlnMinor(asset.valueMinor, asset.currency)
+      const estimate = activeEstimate(asset)
+      const nativeValueMinor = estimate ? estimate.worthMinor : asset.valueMinor
+      const { plnMinor, stale } = await convertToPlnMinor(nativeValueMinor, asset.currency)
       return {
         asset,
-        nativeValueMinor: asset.valueMinor,
+        nativeValueMinor,
         nativeCurrency: asset.currency,
         plnValueMinor: plnMinor,
-        lastUpdated: asset.valuedOn,
-        priceStale: stale
+        unitPrice: null,
+        lastUpdated: estimate ? estimate.catalog.asOf : asset.valuedOn,
+        priceStale: stale,
+        priceMissing: false
       }
     }
     default: {

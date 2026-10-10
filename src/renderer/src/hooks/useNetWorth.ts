@@ -26,6 +26,14 @@ function invalidateMoney(qc: ReturnType<typeof useQueryClient>, month?: string):
   else void qc.invalidateQueries({ queryKey: ['monthSummary'] })
 }
 
+export function useDatabaseInfo() {
+  return useQuery({
+    queryKey: ['databaseInfo'] as const,
+    queryFn: () => window.api.getDatabaseInfo(),
+    staleTime: Infinity
+  })
+}
+
 export function useDashboard() {
   return useQuery({
     queryKey: queryKeys.dashboard,

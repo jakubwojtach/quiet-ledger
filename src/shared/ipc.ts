@@ -19,7 +19,8 @@ export const IpcChannels = {
   listExpenseCategories: 'networth:listExpenseCategories',
   getMonthSummary: 'networth:getMonthSummary',
   createExpense: 'networth:createExpense',
-  deleteExpense: 'networth:deleteExpense'
+  deleteExpense: 'networth:deleteExpense',
+  getDatabaseInfo: 'networth:getDatabaseInfo'
 } as const
 
 export type IpcChannel = (typeof IpcChannels)[keyof typeof IpcChannels]
@@ -30,6 +31,14 @@ const dateSchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/)
 
 /** UI sends major money units; Zod converts to minor (grosze/cents). */
 const moneyMajorToMinor = z.number().finite().transform((n) => majorToMinor(n))
+const optionalMoneyMajorToMinor = z
+  .number()
+  .finite()
+  .nonnegative()
+  .nullable()
+  .optional()
+  .transform((n) => (n == null ? null : majorToMinor(n)))
+const valueSourceSchema = z.enum(['estimate', 'manual']).default('manual')
 const quantityToScaled = z
   .number()
   .positive()
@@ -75,7 +84,8 @@ export const createExpenseRequestSchema = z.object({
 const assetBase = {
   id: z.string().uuid().optional(),
   name: z.string().min(1),
-  notes: z.string().nullable().optional()
+  notes: z.string().nullable().optional(),
+  account: z.string().trim().max(60).nullable().optional()
 }
 
 export const upsertAssetRequestSchema = z.discriminatedUnion('class', [
@@ -92,14 +102,18 @@ export const upsertAssetRequestSchema = z.discriminatedUnion('class', [
     class: z.literal('bond'),
     nominal: moneyMajorToMinor,
     unitValue: moneyMajorToMinor,
-    currency: currencySchema.default('PLN')
+    currency: currencySchema.default('PLN'),
+    statementValue: optionalMoneyMajorToMinor,
+    valuedOn: dateSchema.nullable().optional()
   }),
   z.object({
     ...assetBase,
     class: z.literal('retirement'),
     units: quantityToScaled,
     unitPrice: moneyMajorToMinor,
-    currency: currencySchema.default('PLN')
+    currency: currencySchema.default('PLN'),
+    fundCode: z.string().trim().max(20).nullable().optional(),
+    costBasis: optionalMoneyMajorToMinor
   }),
   z.object({
     ...assetBase,
@@ -118,21 +132,27 @@ export const upsertAssetRequestSchema = z.discriminatedUnion('class', [
     class: z.literal('apartment'),
     value: moneyMajorToMinor,
     currency: currencySchema.default('PLN'),
-    valuedOn: dateSchema
+    valuedOn: dateSchema,
+    costBasis: optionalMoneyMajorToMinor,
+    valueSource: valueSourceSchema
   }),
   z.object({
     ...assetBase,
     class: z.literal('land'),
     value: moneyMajorToMinor,
     currency: currencySchema.default('PLN'),
-    valuedOn: dateSchema
+    valuedOn: dateSchema,
+    costBasis: optionalMoneyMajorToMinor,
+    valueSource: valueSourceSchema
   }),
   z.object({
     ...assetBase,
     class: z.literal('car'),
     value: moneyMajorToMinor,
     currency: currencySchema.default('PLN'),
-    valuedOn: dateSchema
+    valuedOn: dateSchema,
+    costBasis: optionalMoneyMajorToMinor,
+    valueSource: valueSourceSchema
   })
 ])
 
@@ -168,7 +188,8 @@ export const IpcRequestSchemas = {
   [IpcChannels.listExpenseCategories]: emptyRequestSchema,
   [IpcChannels.getMonthSummary]: getMonthSummaryRequestSchema,
   [IpcChannels.createExpense]: createExpenseRequestSchema,
-  [IpcChannels.deleteExpense]: idRequestSchema
+  [IpcChannels.deleteExpense]: idRequestSchema,
+  [IpcChannels.getDatabaseInfo]: emptyRequestSchema
 } as const
 
 export type GetAssetRequest = z.infer<typeof getAssetRequestSchema>

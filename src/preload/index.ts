@@ -10,6 +10,7 @@ import {
   type UpsertAssetRequest,
   type UpsertLiabilityRequest
 } from '../shared/ipc'
+import type { DatabaseInfo } from '../shared/dataDirs'
 import type {
   Asset,
   DashboardSnapshot,
@@ -72,7 +73,9 @@ const api = {
     invokeValidated(IpcChannels.createExpense, request),
 
   deleteExpense: (request: IdRequest): Promise<{ ok: true }> =>
-    invokeValidated(IpcChannels.deleteExpense, request)
+    invokeValidated(IpcChannels.deleteExpense, request),
+
+  getDatabaseInfo: (): Promise<DatabaseInfo> => invokeValidated(IpcChannels.getDatabaseInfo)
 }
 
 export type NetWorthApi = typeof api

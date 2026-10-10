@@ -3,84 +3,99 @@ import { getCache, setCache, PRICE_SCALE } from '../db'
 const TTL_MS = 15 * 60 * 1000
 
 export interface EquityQuote {
-  priceMinor: number
+  /** Price in major units of `currency` (kept unrounded so value = qty × price stays exact) */
+  price: number
   currency: string
   fetchedAt: string
   stale: boolean
+  /** No live or cached quote exists; price is 0 and the holding is excluded from value. */
+  missing: boolean
 }
 
-/**
- * ETF / equity last price in minor units of the quote currency.
- * Cached in SQLite for 15 minutes; last-known used when offline.
- */
-export async function getEquityPrice(ticker: string): Promise<EquityQuote> {
-  const key = `EQ:${ticker.toUpperCase()}`
+function fromCache(key: string, stale: boolean): EquityQuote | null {
   const cached = getCache(key)
-  const now = Date.now()
+  if (!cached) return null
+  return {
+    price: cached.valueScaled / PRICE_SCALE,
+    currency: cached.quoteCurrency,
+    fetchedAt: cached.fetchedAt,
+    stale,
+    missing: false
+  }
+}
 
-  if (cached) {
-    const age = now - new Date(cached.fetchedAt).getTime()
-    if (age < TTL_MS) {
-      return {
-        // valueScaled stores major×PRICE_SCALE; convert to minor (×100)
-        priceMinor: Math.round((cached.valueScaled / PRICE_SCALE) * 100),
-        currency: cached.quoteCurrency,
-        fetchedAt: cached.fetchedAt,
-        stale: false
-      }
-    }
+async function cachedQuote(
+  key: string,
+  fetchLive: () => Promise<{ price: number; currency: string }>
+): Promise<EquityQuote> {
+  const cached = getCache(key)
+  if (cached && Date.now() - new Date(cached.fetchedAt).getTime() < TTL_MS) {
+    return fromCache(key, false)!
   }
 
   try {
-    // Stooq CSV — no key required. European tickers often use .de / .uk suffix.
-    const stooqSymbol = toStooqSymbol(ticker)
-    const url = `https://stooq.com/q/l/?s=${encodeURIComponent(stooqSymbol)}&f=sd2t2ohlcv&h&e=csv`
-    const res = await fetch(url, { signal: AbortSignal.timeout(8000) })
-    if (!res.ok) throw new Error(`Price HTTP ${res.status}`)
-    const text = await res.text()
-    const lines = text.trim().split('\n')
-    if (lines.length < 2) throw new Error('Empty price CSV')
-    const cols = lines[1].split(',')
-    const close = Number(cols[6])
-    if (!Number.isFinite(close) || close <= 0) throw new Error('Invalid close')
-
-    const currency = inferCurrency(ticker)
+    const { price, currency } = await fetchLive()
+    if (!Number.isFinite(price) || price <= 0) throw new Error('Invalid price')
     const fetchedAt = new Date().toISOString()
-    setCache(key, 'equity', Math.round(close * PRICE_SCALE), currency, fetchedAt)
-    return {
-      priceMinor: Math.round(close * 100),
-      currency,
-      fetchedAt,
-      stale: false
-    }
-  } catch {
-    if (cached) {
-      return {
-        priceMinor: Math.round((cached.valueScaled / PRICE_SCALE) * 100),
-        currency: cached.quoteCurrency,
-        fetchedAt: cached.fetchedAt,
-        stale: true
+    setCache(key, 'equity', Math.round(price * PRICE_SCALE), currency, fetchedAt)
+    return { price, currency, fetchedAt, stale: false, missing: false }
+  } catch (err) {
+    console.warn(`[prices] ${key} fetch failed: ${(err as Error).message}`)
+    return (
+      fromCache(key, true) ?? {
+        price: 0,
+        currency: 'PLN',
+        fetchedAt: new Date(0).toISOString(),
+        stale: true,
+        missing: true
       }
-    }
-    return {
-      priceMinor: 10000,
-      currency: inferCurrency(ticker),
-      fetchedAt: new Date(0).toISOString(),
-      stale: true
-    }
+    )
   }
 }
 
-function toStooqSymbol(ticker: string): string {
-  const t = ticker.toLowerCase()
-  if (t.includes('.')) return t
-  return `${t}.us`
+/**
+ * ETF / equity last price from the Yahoo Finance chart endpoint (no key; unofficial).
+ * Tickers are Yahoo symbols: VWCE.DE, ISAC.L, ETFBM40TR.WA …
+ */
+export function getEquityPrice(ticker: string): Promise<EquityQuote> {
+  const symbol = ticker.toUpperCase()
+  return cachedQuote(`EQ:${symbol}`, async () => {
+    const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?range=1d&interval=1d`
+    const res = await fetch(url, {
+      signal: AbortSignal.timeout(8000),
+      headers: { 'User-Agent': 'Mozilla/5.0' }
+    })
+    if (!res.ok) throw new Error(`Yahoo HTTP ${res.status}`)
+    const data = (await res.json()) as {
+      chart?: { result?: Array<{ meta?: { regularMarketPrice?: number; currency?: string } }> }
+    }
+    const meta = data.chart?.result?.[0]?.meta
+    const raw = meta?.regularMarketPrice
+    const currency = meta?.currency
+    if (typeof raw !== 'number' || !currency) throw new Error('Yahoo response missing price')
+    // London lines quoted in pence
+    if (currency === 'GBp' || currency === 'GBX') return { price: raw / 100, currency: 'GBP' }
+    return { price: raw, currency: currency.toUpperCase() }
+  })
 }
 
-function inferCurrency(ticker: string): string {
-  const upper = ticker.toUpperCase()
-  if (upper.endsWith('.DE') || upper.endsWith('.PA') || upper.endsWith('.AS')) return 'EUR'
-  if (upper.endsWith('.L')) return 'GBP'
-  if (upper.endsWith('.WA')) return 'PLN'
-  return 'USD'
+/** Polish mutual fund NAV (wartość jednostki) from analizy.pl, by fund code such as ING80K. */
+export function getFundNav(fundCode: string): Promise<EquityQuote> {
+  const code = fundCode.toUpperCase()
+  return cachedQuote(`FUND:${code}`, async () => {
+    const url = `https://www.analizy.pl/api/quotation/fio/${encodeURIComponent(code)}`
+    const res = await fetch(url, {
+      signal: AbortSignal.timeout(8000),
+      headers: { 'User-Agent': 'Mozilla/5.0' }
+    })
+    if (!res.ok) throw new Error(`analizy.pl HTTP ${res.status}`)
+    const data = (await res.json()) as {
+      currency?: string
+      series?: Array<{ price?: Array<{ date: string; value: number }> }>
+    }
+    const points = data.series?.[0]?.price
+    const last = points?.[points.length - 1]
+    if (!last) throw new Error('analizy.pl response missing NAV')
+    return { price: last.value, currency: (data.currency ?? 'PLN').toUpperCase() }
+  })
 }

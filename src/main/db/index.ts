@@ -2,11 +2,15 @@ import Database from 'better-sqlite3'
 import { join } from 'path'
 import { app } from 'electron'
 import { DEFAULT_CATEGORIES_SQL, SCHEMA_SQL } from './schema'
+import { ensureRealAssets, purgeDemoSeed } from './ensureRealData'
+import { describeDatabase } from '../userDataDir'
+import type { DatabaseInfo } from '@shared/dataDirs'
 import type { Asset, AssetClass, IncomeAllocation, IncomeEntry } from '@shared/types'
 import { QUANTITY_SCALE } from '@shared/types'
 import { randomUUID } from 'crypto'
 
 let db: Database.Database | null = null
+let databasePath: string | null = null
 
 export function getDb(): Database.Database {
   if (!db) {
@@ -15,13 +19,24 @@ export function getDb(): Database.Database {
   return db
 }
 
+export function getDatabasePath(): string {
+  if (!databasePath) throw new Error('Database not initialized')
+  return databasePath
+}
+
+export function getDatabaseInfo(): DatabaseInfo {
+  return describeDatabase(getDatabasePath())
+}
+
 export function initDatabase(): Database.Database {
   const dbPath = join(app.getPath('userData'), 'networth.sqlite')
+  databasePath = dbPath
   db = new Database(dbPath)
   db.pragma('journal_mode = WAL')
+  db.pragma('foreign_keys = ON')
   db.exec(SCHEMA_SQL)
+  ensureAssetColumns(db)
 
-  // Categories only — holdings, loans, expenses, and income stay empty until the user adds them.
   const categoryCount = db.prepare('SELECT COUNT(*) AS c FROM expense_categories').get() as {
     c: number
   }
@@ -29,7 +44,31 @@ export function initDatabase(): Database.Database {
     db.exec(DEFAULT_CATEGORIES_SQL)
   }
 
+  purgeDemoSeed(db)
+  ensureRealAssets(db)
+
+  const info = describeDatabase(dbPath)
+  const names = db.prepare('SELECT name FROM assets ORDER BY name').all() as { name: string }[]
+  console.log(`[savings-net-worth] appId=${info.appId}`)
+  console.log(`[savings-net-worth] SQLite ${info.dbPath}`)
+  console.log(
+    `[savings-net-worth] assets: ${names.length === 0 ? '(none)' : names.map((row) => row.name).join(', ')}`
+  )
+  for (const legacy of info.legacyDbPaths) {
+    console.warn(`[savings-net-worth] Legacy SQLite still on disk (not opened): ${legacy}`)
+  }
+
   return db
+}
+
+/** Columns added after the first schema; CREATE TABLE IF NOT EXISTS skips them on old files. */
+function ensureAssetColumns(database: Database.Database): void {
+  const cols = new Set(
+    (database.prepare('PRAGMA table_info(assets)').all() as { name: string }[]).map((c) => c.name)
+  )
+  for (const name of ['value_source', 'account']) {
+    if (!cols.has(name)) database.exec(`ALTER TABLE assets ADD COLUMN ${name} TEXT`)
+  }
 }
 
 export function closeDatabase(): void {
@@ -37,6 +76,7 @@ export function closeDatabase(): void {
     db.close()
     db = null
   }
+  databasePath = null
 }
 
 type AssetRow = {
@@ -55,6 +95,8 @@ type AssetRow = {
   amount_minor: number | null
   currency: string | null
   valued_on: string | null
+  value_source: string | null
+  account: string | null
   created_at: string
   updated_at: string
 }
@@ -64,6 +106,7 @@ function rowToAsset(row: AssetRow): Asset {
     id: row.id,
     name: row.name,
     notes: row.notes,
+    account: row.account,
     createdAt: row.created_at,
     updatedAt: row.updated_at
   }
@@ -84,7 +127,9 @@ function rowToAsset(row: AssetRow): Asset {
         class: 'bond',
         nominalMinor: row.nominal_minor!,
         unitValueMinor: row.unit_value_minor!,
-        currency: row.currency!
+        currency: row.currency!,
+        statementValueMinor: row.amount_minor,
+        valuedOn: row.valued_on
       }
     case 'retirement':
       return {
@@ -92,7 +137,9 @@ function rowToAsset(row: AssetRow): Asset {
         class: 'retirement',
         unitsScaled: row.units_scaled!,
         unitPriceMinor: row.unit_price_minor!,
-        currency: row.currency!
+        currency: row.currency!,
+        fundCode: row.ticker,
+        costBasisMinor: row.cost_basis_minor
       }
     case 'savings_usd':
     case 'savings_pln':
@@ -110,7 +157,9 @@ function rowToAsset(row: AssetRow): Asset {
         class: row.class,
         valueMinor: row.amount_minor!,
         currency: row.currency!,
-        valuedOn: row.valued_on!
+        valuedOn: row.valued_on!,
+        costBasisMinor: row.cost_basis_minor,
+        valueSource: row.value_source === 'estimate' ? 'estimate' : 'manual'
       }
     default: {
       const _exhaustive: never = row.class

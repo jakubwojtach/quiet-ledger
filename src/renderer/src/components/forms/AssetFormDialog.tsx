@@ -1,6 +1,7 @@
 import { useEffect, useState, type FormEvent, type JSX } from 'react'
 import { ASSET_CLASS_LABELS, QUANTITY_SCALE, type Asset, type AssetClass } from '@shared/types'
-import { minorToMajor } from '@shared/money'
+import { majorToMinor, minorToMajor } from '@shared/money'
+import { catalogEstimateFor } from '@shared/valuationFormulas'
 import type { UpsertAssetRequest } from '@shared/ipc'
 import { useUpsertAsset } from '@renderer/hooks/useNetWorth'
 import { Button } from '@renderer/components/ui/button'
@@ -27,10 +28,18 @@ interface AssetFormDialogProps {
 export function AssetFormDialog({ open, onOpenChange, asset }: AssetFormDialogProps): JSX.Element {
   const upsert = useUpsertAsset()
   const editing = Boolean(asset)
+  const catalogEstimate =
+    asset &&
+    (asset.class === 'apartment' || asset.class === 'land' || asset.class === 'car') &&
+    asset.valueSource === 'estimate'
+      ? catalogEstimateFor(asset.id)
+      : null
 
   const [cls, setCls] = useState<AssetClass>('savings_pln')
   const [name, setName] = useState('')
   const [notes, setNotes] = useState('')
+  const [account, setAccount] = useState('')
+  const [fundCode, setFundCode] = useState('')
   const [ticker, setTicker] = useState('')
   const [quantity, setQuantity] = useState('')
   const [costBasis, setCostBasis] = useState('')
@@ -42,6 +51,7 @@ export function AssetFormDialog({ open, onOpenChange, asset }: AssetFormDialogPr
   const [amount, setAmount] = useState('')
   const [currency, setCurrency] = useState('PLN')
   const [value, setValue] = useState('')
+  const [paid, setPaid] = useState('')
   const [valuedOn, setValuedOn] = useState(new Date().toISOString().slice(0, 10))
   const [error, setError] = useState<string | null>(null)
 
@@ -52,6 +62,8 @@ export function AssetFormDialog({ open, onOpenChange, asset }: AssetFormDialogPr
       setCls('savings_pln')
       setName('')
       setNotes('')
+      setAccount('')
+      setFundCode('')
       setTicker('')
       setQuantity('')
       setCostBasis('')
@@ -63,12 +75,14 @@ export function AssetFormDialog({ open, onOpenChange, asset }: AssetFormDialogPr
       setAmount('')
       setCurrency('PLN')
       setValue('')
+      setPaid('')
       setValuedOn(new Date().toISOString().slice(0, 10))
       return
     }
     setCls(asset.class)
     setName(asset.name)
     setNotes(asset.notes ?? '')
+    setAccount(asset.account ?? '')
     if (asset.class === 'etf') {
       setTicker(asset.ticker)
       setQuantity(String(asset.quantityScaled / QUANTITY_SCALE))
@@ -78,22 +92,38 @@ export function AssetFormDialog({ open, onOpenChange, asset }: AssetFormDialogPr
       setNominal(String(minorToMajor(asset.nominalMinor)))
       setUnitValue(String(minorToMajor(asset.unitValueMinor)))
       setCurrency(asset.currency)
+      setValue(
+        asset.statementValueMinor == null ? '' : String(minorToMajor(asset.statementValueMinor))
+      )
+      setValuedOn(asset.valuedOn ?? new Date().toISOString().slice(0, 10))
     } else if (asset.class === 'retirement') {
       setUnits(String(asset.unitsScaled / QUANTITY_SCALE))
       setUnitPrice(String(minorToMajor(asset.unitPriceMinor)))
       setCurrency(asset.currency)
+      setFundCode(asset.fundCode ?? '')
+      setPaid(asset.costBasisMinor == null ? '' : String(minorToMajor(asset.costBasisMinor)))
     } else if (asset.class === 'savings_usd' || asset.class === 'savings_pln') {
       setAmount(String(minorToMajor(asset.amountMinor)))
       setCurrency(asset.currency)
     } else {
       setValue(String(minorToMajor(asset.valueMinor)))
+      setPaid(asset.costBasisMinor == null ? '' : String(minorToMajor(asset.costBasisMinor)))
       setCurrency(asset.currency)
       setValuedOn(asset.valuedOn)
     }
   }, [open, asset])
 
   function num(s: string): number {
-    return Number(s.replace(',', '.'))
+    return Number(s.replace(/\s/g, '').replace(',', '.'))
+  }
+
+  /** Blank → null; otherwise a non-negative number or an error message. */
+  function optionalAmount(s: string, label: string): number | null {
+    const trimmed = s.trim()
+    if (!trimmed) return null
+    const n = num(trimmed)
+    if (!Number.isFinite(n) || n < 0) throw new Error(`${label} must be a non-negative amount.`)
+    return n
   }
 
   async function onSubmit(e: FormEvent): Promise<void> {
@@ -109,7 +139,8 @@ export function AssetFormDialog({ open, onOpenChange, asset }: AssetFormDialogPr
       const base = {
         id: asset?.id,
         name: name.trim(),
-        notes: notes.trim() || null
+        notes: notes.trim() || null,
+        account: account.trim() || null
       }
       switch (cls) {
         case 'etf':
@@ -128,7 +159,9 @@ export function AssetFormDialog({ open, onOpenChange, asset }: AssetFormDialogPr
             class: 'bond',
             nominal: num(nominal),
             unitValue: num(unitValue),
-            currency
+            currency,
+            statementValue: optionalAmount(value, 'Statement value'),
+            valuedOn: value.trim() ? valuedOn : null
           }
           break
         case 'retirement':
@@ -137,7 +170,9 @@ export function AssetFormDialog({ open, onOpenChange, asset }: AssetFormDialogPr
             class: 'retirement',
             units: num(units),
             unitPrice: num(unitPrice),
-            currency
+            currency,
+            fundCode: fundCode.trim() || null,
+            costBasis: optionalAmount(paid, 'Paid')
           }
           break
         case 'savings_usd':
@@ -158,15 +193,34 @@ export function AssetFormDialog({ open, onOpenChange, asset }: AssetFormDialogPr
           break
         case 'apartment':
         case 'land':
-        case 'car':
+        case 'car': {
+          const worth = num(value)
+          if (!Number.isFinite(worth) || worth < 0) {
+            setError('Worth now must be a non-negative amount.')
+            return
+          }
+          const paidTrimmed = paid.trim()
+          let paidMajor: number | null = null
+          if (paidTrimmed) {
+            paidMajor = num(paidTrimmed)
+            if (!Number.isFinite(paidMajor) || paidMajor < 0) {
+              setError('Paid must be a non-negative amount.')
+              return
+            }
+          }
+          const keepEstimate =
+            catalogEstimate != null && majorToMinor(worth) === catalogEstimate.worthMinor
           payload = {
             ...base,
             class: cls,
-            value: num(value),
+            value: worth,
             currency,
-            valuedOn
+            valuedOn,
+            costBasis: paidMajor,
+            valueSource: keepEstimate ? 'estimate' : 'manual'
           }
           break
+        }
         default: {
           const _e: never = cls
           throw new Error(`Unknown class ${_e}`)
@@ -215,10 +269,21 @@ export function AssetFormDialog({ open, onOpenChange, asset }: AssetFormDialogPr
             <Label htmlFor="asset-name">Name</Label>
             <Input id="asset-name" value={name} onChange={(e) => setName(e.target.value)} required />
           </div>
+          <Field
+            label="Account (IKE, IKZE Kaja, Broker USD…)"
+            id="asset-account"
+            value={account}
+            onChange={setAccount}
+          />
 
           {cls === 'etf' && (
             <>
-              <Field label="Ticker" id="ticker" value={ticker} onChange={setTicker} />
+              <Field
+                label="Yahoo symbol (VWCE.DE, ISAC.L, ETFBM40TR.WA)"
+                id="ticker"
+                value={ticker}
+                onChange={setTicker}
+              />
               <div className="grid grid-cols-2 gap-3">
                 <Field label="Quantity" id="qty" value={quantity} onChange={setQuantity} />
                 <Field label="Cost basis" id="cost" value={costBasis} onChange={setCostBasis} />
@@ -237,6 +302,23 @@ export function AssetFormDialog({ open, onOpenChange, asset }: AssetFormDialogPr
                   onChange={setUnitValue}
                 />
               </div>
+              <div className="grid grid-cols-2 gap-3">
+                <Field
+                  label="Statement value (optional)"
+                  id="bond-stmt"
+                  value={value}
+                  onChange={setValue}
+                />
+                <div className="space-y-1.5">
+                  <Label htmlFor="bond-valued-on">Statement date</Label>
+                  <Input
+                    id="bond-valued-on"
+                    type="date"
+                    value={valuedOn}
+                    onChange={(e) => setValuedOn(e.target.value)}
+                  />
+                </div>
+              </div>
               <Field label="Currency" id="bond-ccy" value={currency} onChange={setCurrency} />
             </>
           )}
@@ -244,7 +326,21 @@ export function AssetFormDialog({ open, onOpenChange, asset }: AssetFormDialogPr
             <>
               <div className="grid grid-cols-2 gap-3">
                 <Field label="Units" id="units" value={units} onChange={setUnits} />
-                <Field label="Unit price" id="uprice" value={unitPrice} onChange={setUnitPrice} />
+                <Field
+                  label="Unit price (fallback)"
+                  id="uprice"
+                  value={unitPrice}
+                  onChange={setUnitPrice}
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <Field
+                  label="analizy.pl fund code (ING80K)"
+                  id="fund-code"
+                  value={fundCode}
+                  onChange={setFundCode}
+                />
+                <Field label="Paid (optional)" id="ret-paid" value={paid} onChange={setPaid} />
               </div>
               <Field label="Currency" id="ret-ccy" value={currency} onChange={setCurrency} />
             </>
@@ -259,7 +355,14 @@ export function AssetFormDialog({ open, onOpenChange, asset }: AssetFormDialogPr
           )}
           {(cls === 'apartment' || cls === 'land' || cls === 'car') && (
             <>
-              <Field label="Manual value" id="mval" value={value} onChange={setValue} />
+              <Field label="Paid" id="paid" value={paid} onChange={setPaid} />
+              <Field label="Worth now" id="mval" value={value} onChange={setValue} />
+              {catalogEstimate && (
+                <p className="text-xs text-ink-muted">
+                  Worth is the {catalogEstimate.catalog.label} catalog estimate and refreshes on launch. Change worth to
+                  keep a manual figure. Paid stays as you save it.
+                </p>
+              )}
               <Field label="Currency" id="man-ccy" value={currency} onChange={setCurrency} />
               <div className="space-y-1.5">
                 <Label htmlFor="valued-on">Valued on</Label>

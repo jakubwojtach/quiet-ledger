@@ -1,5 +1,5 @@
 import type { JSX } from 'react'
-import { formatMinorUnits } from '@shared/money'
+import { formatGainPercent, formatMinorUnits } from '@shared/money'
 import type { ValuedAsset } from '@shared/types'
 
 interface HoldingsListProps {
@@ -38,14 +38,18 @@ export function HoldingsList({
             <div>
               <div className="font-medium">{v.asset.name}</div>
               <div className={`text-xs ${active ? 'text-white/80' : 'text-ink-muted'}`}>
-                {v.asset.class}
-                {v.priceStale ? ' · stale price' : ''}
+                {v.asset.account ?? v.asset.class}
+                {v.priceMissing ? ' · no quote yet' : v.priceStale ? ' · stale price' : ''}
               </div>
             </div>
             <div className="text-right tabular-nums">
               <div className="text-sm font-medium">{formatMinorUnits(v.plnValueMinor, 'PLN')}</div>
               <div className={`text-xs ${active ? 'text-white/80' : 'text-ink-muted'}`}>
-                {formatMinorUnits(v.nativeValueMinor, v.nativeCurrency)}
+                {v.gainPercent != null
+                  ? formatGainPercent(v.gainPercent)
+                  : v.nativeCurrency === 'PLN'
+                    ? ''
+                    : formatMinorUnits(v.nativeValueMinor, v.nativeCurrency)}
               </div>
             </div>
           </div>

@@ -2,6 +2,7 @@ import { randomUUID } from 'crypto'
 import type { Asset, AssetClass } from '@shared/types'
 import type { UpsertAssetParsed } from '@shared/ipc'
 import { getDb, getAssetById } from './index'
+import { markCatalogAssetDismissed } from './ensureRealData'
 
 export function upsertAsset(input: UpsertAssetParsed): Asset {
   const id = input.id ?? randomUUID()
@@ -25,6 +26,8 @@ export function upsertAsset(input: UpsertAssetParsed): Asset {
     amount_minor: null as number | null,
     currency: null as string | null,
     valued_on: null as string | null,
+    value_source: null as string | null,
+    account: input.account ?? null,
     created_at: createdAt,
     updated_at: now
   }
@@ -41,11 +44,16 @@ export function upsertAsset(input: UpsertAssetParsed): Asset {
       row.nominal_minor = input.nominal
       row.unit_value_minor = input.unitValue
       row.currency = input.currency
+      row.amount_minor = input.statementValue
+      row.valued_on = input.valuedOn ?? null
       break
     case 'retirement':
       row.units_scaled = input.units
       row.unit_price_minor = input.unitPrice
       row.currency = input.currency
+      row.ticker = input.fundCode?.trim().toUpperCase() || null
+      row.cost_basis_minor = input.costBasis
+      row.cost_currency = input.costBasis == null ? null : input.currency
       break
     case 'savings_usd':
     case 'savings_pln':
@@ -58,6 +66,9 @@ export function upsertAsset(input: UpsertAssetParsed): Asset {
       row.amount_minor = input.value
       row.currency = input.currency
       row.valued_on = input.valuedOn
+      row.cost_basis_minor = input.costBasis
+      row.cost_currency = input.costBasis == null ? null : input.currency
+      row.value_source = input.valueSource
       break
     default: {
       const _e: never = input
@@ -71,12 +82,12 @@ export function upsertAsset(input: UpsertAssetParsed): Asset {
         id, class, name, notes,
         ticker, quantity_scaled, cost_basis_minor, cost_currency,
         nominal_minor, unit_value_minor, units_scaled, unit_price_minor,
-        amount_minor, currency, valued_on, created_at, updated_at
+        amount_minor, currency, valued_on, value_source, account, created_at, updated_at
       ) VALUES (
         @id, @class, @name, @notes,
         @ticker, @quantity_scaled, @cost_basis_minor, @cost_currency,
         @nominal_minor, @unit_value_minor, @units_scaled, @unit_price_minor,
-        @amount_minor, @currency, @valued_on, @created_at, @updated_at
+        @amount_minor, @currency, @valued_on, @value_source, @account, @created_at, @updated_at
       )
       ON CONFLICT(id) DO UPDATE SET
         class = excluded.class,
@@ -93,6 +104,8 @@ export function upsertAsset(input: UpsertAssetParsed): Asset {
         amount_minor = excluded.amount_minor,
         currency = excluded.currency,
         valued_on = excluded.valued_on,
+        value_source = excluded.value_source,
+        account = excluded.account,
         updated_at = excluded.updated_at`
     )
     .run(row)
@@ -103,6 +116,8 @@ export function upsertAsset(input: UpsertAssetParsed): Asset {
 }
 
 export function deleteAsset(id: string): { ok: true } {
-  getDb().prepare('DELETE FROM assets WHERE id = ?').run(id)
+  const database = getDb()
+  markCatalogAssetDismissed(database, id)
+  database.prepare('DELETE FROM assets WHERE id = ?').run(id)
   return { ok: true }
 }

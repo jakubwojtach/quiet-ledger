@@ -25,6 +25,10 @@ CREATE TABLE IF NOT EXISTS assets (
   amount_minor INTEGER,
   currency TEXT,
   valued_on TEXT,
+  -- apartment / land / car: 'estimate' (catalog formula) or 'manual'
+  value_source TEXT,
+  -- wrapper or institution, e.g. IKE, IKZE Kaja, Broker USD
+  account TEXT,
   created_at TEXT NOT NULL,
   updated_at TEXT NOT NULL
 );
@@ -83,6 +87,11 @@ CREATE TABLE IF NOT EXISTS income_allocations (
   amount_minor INTEGER NOT NULL
 );
 
+CREATE TABLE IF NOT EXISTS app_meta (
+  key TEXT PRIMARY KEY NOT NULL,
+  value TEXT NOT NULL
+);
+
 CREATE INDEX IF NOT EXISTS idx_assets_class ON assets(class);
 CREATE INDEX IF NOT EXISTS idx_income_month ON income_entries(month);
 CREATE INDEX IF NOT EXISTS idx_expense_date ON expense_entries(date);
@@ -90,8 +99,9 @@ CREATE INDEX IF NOT EXISTS idx_price_cache_fetched ON price_cache(fetched_at);
 `
 
 /**
- * Default expense category labels only — not personal demo data.
- * Assets, liabilities, expenses, and income start empty on a fresh DB.
+ * Default expense category labels only — not personal holdings.
+ * A fresh database also gets the Fort Wola apartment (see ensureRealData.ts).
+ * Scaffold demo rows (ETF, loans, generic land/car) are not inserted.
  */
 export const DEFAULT_CATEGORIES_SQL = `
 INSERT OR IGNORE INTO expense_categories (id, name, sort_order) VALUES

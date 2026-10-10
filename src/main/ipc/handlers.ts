@@ -11,7 +11,13 @@ import {
 } from '@shared/ipc'
 import { buildDashboard, getValuedAsset, refreshAllPrices } from '../services/valuation'
 import { buildMonthSummary } from '../services/monthSummary'
-import { createIncomeEntry, deleteIncomeEntry, listAssets, listIncomeEntries } from '../db'
+import {
+  createIncomeEntry,
+  deleteIncomeEntry,
+  getDatabaseInfo,
+  listAssets,
+  listIncomeEntries
+} from '../db'
 import { upsertAsset, deleteAsset } from '../db/assets'
 import { listLiabilities, upsertLiability, deleteLiability } from '../db/liabilities'
 import {
@@ -112,4 +118,6 @@ export function registerIpcHandlers(): void {
     const { id } = idRequestSchema.parse(raw)
     return deleteExpenseEntry(id)
   })
+
+  ipcMain.handle(IpcChannels.getDatabaseInfo, async () => getDatabaseInfo())
 }
