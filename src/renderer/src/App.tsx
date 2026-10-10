@@ -1,4 +1,4 @@
-import { useEffect, useState, type JSX, type ReactNode } from 'react'
+import { useEffect, useRef, useState, type JSX, type ReactNode } from 'react'
 import { Dashboard } from '@renderer/components/Dashboard'
 import { HoldingsList } from '@renderer/components/HoldingsList'
 import { AssetDetail } from '@renderer/components/AssetDetail'
@@ -11,6 +11,22 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@rend
 import { cn } from '@renderer/lib/utils'
 
 type Tab = 'savings' | 'installments'
+
+const TAB_COPY: Record<
+  Tab,
+  { eyebrow: string; title: string; subtitle: string }
+> = {
+  savings: {
+    eyebrow: 'Savings',
+    title: 'Savings',
+    subtitle: 'Your holdings in PLN — edit locally; data stays in SQLite on this machine.'
+  },
+  installments: {
+    eyebrow: 'Installments',
+    title: 'Installments',
+    subtitle: 'Loans, e-raty, spending, and income — enter real amounts in złoty.'
+  }
+}
 
 export default function App(): JSX.Element {
   const [tab, setTab] = useState<Tab>('savings')
@@ -166,19 +182,80 @@ function Shell({
   tab: Tab
   onTabChange: (tab: Tab) => void
 }): JSX.Element {
+  const [compact, setCompact] = useState(false)
+  const sentinelRef = useRef<HTMLDivElement>(null)
+  const copy = TAB_COPY[tab]
+
+  useEffect(() => {
+    const sentinel = sentinelRef.current
+    if (!sentinel) return
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        setCompact(!entry.isIntersecting)
+      },
+      { threshold: 0, rootMargin: '-1px 0px 0px 0px' }
+    )
+
+    observer.observe(sentinel)
+    return () => observer.disconnect()
+  }, [])
+
   return (
-    <div className="mx-auto flex min-h-screen max-w-6xl flex-col gap-6 px-4 py-6 md:px-8 md:py-10">
-      <header>
-        <p className="text-xs font-semibold uppercase tracking-[0.2em] text-forest-soft">Savings</p>
-        <h1 className="mt-1 font-display text-3xl font-semibold tracking-tight text-ink md:text-4xl">
-          {tab === 'savings' ? 'Savings' : 'Installments'}
-        </h1>
-        <p className="mt-2 max-w-xl text-sm text-ink-muted md:text-base">
-          {tab === 'savings'
-            ? 'Your holdings in PLN — edit locally; data stays in SQLite on this machine.'
-            : 'Loans, e-raty, spending, and income — enter real amounts in złoty.'}
+    <div className="mx-auto flex min-h-screen max-w-6xl flex-col px-4 md:px-8">
+      <div ref={sentinelRef} className="h-6 md:h-10" aria-hidden />
+      <header
+        data-testid="app-sticky-header"
+        data-compact={compact ? 'true' : 'false'}
+        className={cn(
+          'sticky top-0 z-30 -mx-4 px-4 md:-mx-8 md:px-8',
+          'transition-[padding,background-color,box-shadow,border-color] duration-300 ease-out',
+          compact
+            ? 'border-b border-line/70 bg-paper/85 py-3 shadow-[0_8px_24px_-18px_rgba(20,32,26,0.45)] backdrop-blur-md'
+            : 'border-b border-transparent bg-transparent pb-0 pt-0'
+        )}
+      >
+        <p
+          className={cn(
+            'overflow-hidden text-xs font-semibold uppercase tracking-[0.2em] text-forest-soft',
+            'transition-[opacity,max-height,transform,margin] duration-300 ease-out',
+            compact
+              ? 'pointer-events-none mb-0 max-h-0 -translate-y-1 opacity-0'
+              : 'mb-0 max-h-6 translate-y-0 opacity-100'
+          )}
+        >
+          {copy.eyebrow}
         </p>
-        <nav className="mt-4 flex gap-2" aria-label="Primary" role="tablist">
+        <h1
+          className={cn(
+            'font-display font-semibold tracking-tight text-ink',
+            'transition-[font-size,margin,transform] duration-300 ease-out',
+            compact
+              ? 'mt-0 text-2xl md:text-[1.65rem]'
+              : 'mt-1 text-3xl md:text-4xl'
+          )}
+        >
+          {copy.title}
+        </h1>
+        <p
+          className={cn(
+            'max-w-xl overflow-hidden text-sm text-ink-muted md:text-base',
+            'transition-[opacity,max-height,margin,transform] duration-300 ease-out',
+            compact
+              ? 'pointer-events-none mt-0 max-h-0 -translate-y-1 opacity-0'
+              : 'mt-2 max-h-16 translate-y-0 opacity-100'
+          )}
+        >
+          {copy.subtitle}
+        </p>
+        <nav
+          className={cn(
+            'flex gap-2 transition-[margin] duration-300 ease-out',
+            compact ? 'mt-2.5' : 'mt-4'
+          )}
+          aria-label="Primary"
+          role="tablist"
+        >
           <TabButton
             id="tab-savings"
             active={tab === 'savings'}
@@ -195,7 +272,7 @@ function Shell({
           </TabButton>
         </nav>
       </header>
-      {children}
+      <div className="flex flex-col gap-6 py-6">{children}</div>
     </div>
   )
 }
