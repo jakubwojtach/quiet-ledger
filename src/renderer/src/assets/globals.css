@@ -1,0 +1,37 @@
+@import 'tailwindcss';
+
+@theme {
+  --font-sans: 'Avenir Next', 'Segoe UI', Candara, 'Gill Sans', sans-serif;
+  --font-display: 'Iowan Old Style', 'Palatino Linotype', Palatino, Georgia, serif;
+  --color-ink: #14201a;
+  --color-ink-muted: #3d5248;
+  --color-paper: #f3f6f2;
+  --color-paper-deep: #e4ebe4;
+  --color-forest: #1f4d38;
+  --color-forest-soft: #2f6b4f;
+  --color-accent: #c45c26;
+  --color-line: #c5d1c8;
+  --color-card: #ffffffcc;
+}
+
+@layer base {
+  * {
+    box-sizing: border-box;
+  }
+
+  html,
+  body,
+  #root {
+    min-height: 100%;
+  }
+
+  body {
+    margin: 0;
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+    background:
+      radial-gradient(1200px 600px at 10% -10%, #d7e8dc 0%, transparent 55%),
+      radial-gradient(900px 500px at 100% 0%, #f0e2d4 0%, transparent 50%),
+      linear-gradient(180deg, var(--color-paper) 0%, var(--color-paper-deep) 100%);
+  }
+}
