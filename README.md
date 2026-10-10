@@ -1,24 +1,6 @@
 # Savings
 
-Personal savings & installments tracker as an **Electron** desktop app. Base currency is **PLN**; all money values are stored as **integers in minor units** (grosze / cents).
-
-## Stack
-
-- [electron-vite](https://electron-vite.org/) · React 19 · TypeScript · Tailwind CSS · shadcn/ui
-- TanStack Query · Zod
-- better-sqlite3 in the **main** process (FX/price cache + holdings)
-
-## Architecture
-
-| Layer | Responsibility |
-| --- | --- |
-| **Main** | SQLite, FX/price fetch, valuation service, IPC handlers. Secrets stay here. |
-| **Preload** | Typed `window.api` via `contextBridge`; **Zod validates every IPC payload** before `invoke`. |
-| **Renderer** | React UI only — no direct network or database access. |
-
-Security defaults: `contextIsolation: true`, `nodeIntegration: false`, `sandbox: true`, CSP on the renderer session.
-
-FX and equity quotes are cached in SQLite with a **15-minute TTL**. If a fetch fails, the last known value is used (`stale: true`).
+Personal savings & installments tracker as an **Electron** desktop app. Base currency is **PLN**; all money values are stored as **integers in minor units** (grosze / cents). **No Supabase or cloud account required** — everything saves to local SQLite.
 
 ## Run locally
 
@@ -32,38 +14,51 @@ npm run dev
 Other scripts:
 
 ```bash
-npm run typecheck   # main + renderer TypeScript
-npm run build       # production build
-npm start           # preview production build via electron-vite
+npm run typecheck
+npm run build
+npm start
 ```
 
-SQLite data lives under the Electron `userData` directory (`networth.sqlite`). First launch seeds demo holdings, liabilities, expense categories, and sample expenses.
+### Where your data lives
+
+SQLite file: Electron `userData` / `networth.sqlite`
+
+| OS | Typical path |
+| --- | --- |
+| Linux | `~/.config/savings-net-worth/networth.sqlite` |
+| macOS | `~/Library/Application Support/savings-net-worth/networth.sqlite` |
+| Windows | `%APPDATA%\savings-net-worth\networth.sqlite` |
+
+Enter amounts in normal units in the UI (e.g. `1500.50`); Zod converts to grosze/cents before save.
 
 ### UI tabs
 
-1. **Savings** — total assets/savings in PLN, class breakdown, holdings detail (optional “after debts” line)
-2. **Installments** — pożyczki / e-raty (principal, monthly payment, due) plus monthly income, expenses, and installment cashflow
+1. **Savings** — total holdings, class breakdown, add/edit/delete assets
+2. **Installments** — pożyczki / e-raty (add/edit/delete), expenses, income, cashflow
+
+## Stack
+
+- electron-vite · React 19 · TypeScript · Tailwind · shadcn/ui
+- TanStack Query · Zod
+- better-sqlite3 in the **main** process
+
+## Architecture
+
+| Layer | Responsibility |
+| --- | --- |
+| **Main** | SQLite, FX/price fetch, valuation, IPC. Secrets stay here. |
+| **Preload** | Typed `window.api`; Zod validates every IPC payload. |
+| **Renderer** | React only — no network, no DB. |
 
 ## Key paths
 
 | Area | Path |
 | --- | --- |
-| Schema / seed | `src/main/db/schema.ts` |
-| DB access | `src/main/db/index.ts` |
-| Liabilities | `src/main/db/liabilities.ts` |
+| Schema | `src/main/db/schema.ts` |
+| Asset CRUD | `src/main/db/assets.ts` |
+| Liability CRUD | `src/main/db/liabilities.ts` |
 | Expenses | `src/main/db/expenses.ts` |
-| Shared types | `src/shared/types.ts` |
-| IPC channels + Zod | `src/shared/ipc.ts` |
-| Valuation | `src/main/services/valuation.ts` |
-| Month summary | `src/main/services/monthSummary.ts` |
-| Local events hook (future HA) | `src/main/hooks/localEvents.ts` |
-| Preload API | `src/preload/index.ts` |
-| Savings UI | `src/renderer/src/components/Dashboard.tsx` |
+| IPC + Zod | `src/shared/ipc.ts` |
+| Asset form | `src/renderer/src/components/forms/AssetFormDialog.tsx` |
+| Liability form | `src/renderer/src/components/forms/LiabilityFormDialog.tsx` |
 | Installments UI | `src/renderer/src/components/Installments.tsx` |
-
-## Features
-
-- **Savings**: total savings in PLN, % breakdown by asset class, per-holding detail
-- **Installments**: loan/e-raty principals & payments, expense categories + entries, income log, cashflow sketch (income − expenses − installments)
-- Optimistic TanStack Query mutations with invalidate-on-success
-- Thin `emitLocalEvent` hook for a future Home Assistant / MCP integration (no HA built yet)

@@ -1,17 +1,25 @@
 import type { JSX } from 'react'
 import { formatMinorUnits } from '@shared/money'
-import { ASSET_CLASS_LABELS, type ValuedAsset } from '@shared/types'
+import { ASSET_CLASS_LABELS, type Asset, type ValuedAsset } from '@shared/types'
 import { useAsset } from '@renderer/hooks/useNetWorth'
+import { Button } from '@renderer/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@renderer/components/ui/card'
 
 interface AssetDetailProps {
   assetId: string | null
-  /** Preferred: valued row already on the dashboard snapshot (no extra IPC). */
   valued?: ValuedAsset | null
+  onEdit?: (asset: Asset) => void
+  onDelete?: (asset: Asset) => void
+  onAdd?: () => void
 }
 
-export function AssetDetail({ assetId, valued }: AssetDetailProps): JSX.Element {
-  // Fall back to IPC when parent has no snapshot row (e.g. deep-link later).
+export function AssetDetail({
+  assetId,
+  valued,
+  onEdit,
+  onDelete,
+  onAdd
+}: AssetDetailProps): JSX.Element {
   const needsFetch = Boolean(assetId) && !valued
   const { data: fetched, isLoading, isError, error } = useAsset(needsFetch ? assetId : null)
   const data = valued ?? fetched ?? null
@@ -21,8 +29,15 @@ export function AssetDetail({ assetId, valued }: AssetDetailProps): JSX.Element 
       <Card className="h-full min-h-48" data-testid="asset-detail-empty">
         <CardHeader>
           <CardTitle>Asset detail</CardTitle>
-          <CardDescription>Choose a holding from the dashboard list.</CardDescription>
+          <CardDescription>No holding selected.</CardDescription>
         </CardHeader>
+        <CardContent>
+          {onAdd && (
+            <Button onClick={onAdd} data-testid="add-asset-empty">
+              Add holding
+            </Button>
+          )}
+        </CardContent>
       </Card>
     )
   }
@@ -53,9 +68,29 @@ export function AssetDetail({ assetId, valued }: AssetDetailProps): JSX.Element 
 
   return (
     <Card data-testid="asset-detail">
-      <CardHeader>
-        <CardDescription>{ASSET_CLASS_LABELS[asset.class]}</CardDescription>
-        <CardTitle className="font-display text-2xl">{asset.name}</CardTitle>
+      <CardHeader className="flex flex-row items-start justify-between gap-3">
+        <div>
+          <CardDescription>{ASSET_CLASS_LABELS[asset.class]}</CardDescription>
+          <CardTitle className="font-display text-2xl">{asset.name}</CardTitle>
+        </div>
+        <div className="flex gap-2">
+          {onEdit && (
+            <Button variant="outline" size="sm" onClick={() => onEdit(asset)}>
+              Edit
+            </Button>
+          )}
+          {onDelete && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => {
+                if (confirm(`Delete “${asset.name}”?`)) onDelete(asset)
+              }}
+            >
+              Delete
+            </Button>
+          )}
+        </div>
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="grid grid-cols-2 gap-3">

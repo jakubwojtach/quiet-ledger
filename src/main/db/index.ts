@@ -296,6 +296,11 @@ export function createIncomeEntry(input: {
   }
 }
 
+export function deleteIncomeEntry(id: string): { ok: true } {
+  getDb().prepare('DELETE FROM income_entries WHERE id = ?').run(id)
+  return { ok: true }
+}
+
 export type CacheKind = 'fx' | 'equity'
 
 export interface CacheRow {

@@ -3,7 +3,9 @@ import { Dashboard } from '@renderer/components/Dashboard'
 import { HoldingsList } from '@renderer/components/HoldingsList'
 import { AssetDetail } from '@renderer/components/AssetDetail'
 import { Installments } from '@renderer/components/Installments'
-import { useDashboard } from '@renderer/hooks/useNetWorth'
+import { AssetFormDialog } from '@renderer/components/forms/AssetFormDialog'
+import { useDashboard, useDeleteAsset } from '@renderer/hooks/useNetWorth'
+import type { Asset } from '@shared/types'
 import { Button } from '@renderer/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@renderer/components/ui/card'
 import { cn } from '@renderer/lib/utils'
@@ -22,7 +24,10 @@ export default function App(): JSX.Element {
 
 function SavingsTab(): JSX.Element {
   const { data: dashboard, isLoading, isError, error, refetch, isFetching } = useDashboard()
+  const deleteAsset = useDeleteAsset()
   const [selectedAssetId, setSelectedAssetId] = useState<string | null>(null)
+  const [assetOpen, setAssetOpen] = useState(false)
+  const [editingAsset, setEditingAsset] = useState<Asset | null>(null)
 
   useEffect(() => {
     if (selectedAssetId != null) return
@@ -66,36 +71,88 @@ function SavingsTab(): JSX.Element {
 
       <aside className="flex min-w-0 flex-col gap-4">
         <Card>
-          <CardHeader>
-            <CardTitle>Holdings</CardTitle>
-            <CardDescription>Select an asset for native and PLN detail</CardDescription>
+          <CardHeader className="flex flex-row flex-wrap items-start justify-between gap-3">
+            <div>
+              <CardTitle>Holdings</CardTitle>
+              <CardDescription>Select an asset for native and PLN detail</CardDescription>
+            </div>
+            <Button
+              data-testid="add-asset-btn"
+              onClick={() => {
+                setEditingAsset(null)
+                setAssetOpen(true)
+              }}
+            >
+              Add holding
+            </Button>
           </CardHeader>
           <CardContent>
-            <label className="mb-3 block text-xs font-medium text-ink-muted" htmlFor="holding-select">
-              Jump to holding
-            </label>
-            <select
-              id="holding-select"
-              className="mb-3 flex h-10 w-full rounded-md border border-line bg-white px-3 text-sm"
-              value={selectedAssetId ?? ''}
-              onChange={(e) => setSelectedAssetId(e.target.value)}
-            >
-              {dashboard.assets.map((v) => (
-                <option key={v.asset.id} value={v.asset.id}>
-                  {v.asset.name}
-                </option>
-              ))}
-            </select>
-            <HoldingsList
-              assets={dashboard.assets}
-              selectedAssetId={selectedAssetId}
-              onSelectAsset={setSelectedAssetId}
-            />
+            {dashboard.assets.length === 0 ? (
+              <div className="rounded-lg border border-dashed border-line px-4 py-8 text-center">
+                <p className="text-sm text-ink-muted">No holdings yet — add your first asset.</p>
+                <Button
+                  className="mt-3"
+                  variant="outline"
+                  onClick={() => {
+                    setEditingAsset(null)
+                    setAssetOpen(true)
+                  }}
+                >
+                  Add holding
+                </Button>
+              </div>
+            ) : (
+              <>
+                <label
+                  className="mb-3 block text-xs font-medium text-ink-muted"
+                  htmlFor="holding-select"
+                >
+                  Jump to holding
+                </label>
+                <select
+                  id="holding-select"
+                  className="mb-3 flex h-10 w-full rounded-md border border-line bg-white px-3 text-sm"
+                  value={selectedAssetId ?? ''}
+                  onChange={(e) => setSelectedAssetId(e.target.value)}
+                >
+                  {dashboard.assets.map((v) => (
+                    <option key={v.asset.id} value={v.asset.id}>
+                      {v.asset.name}
+                    </option>
+                  ))}
+                </select>
+                <HoldingsList
+                  assets={dashboard.assets}
+                  selectedAssetId={selectedAssetId}
+                  onSelectAsset={setSelectedAssetId}
+                />
+              </>
+            )}
           </CardContent>
         </Card>
 
-        <AssetDetail assetId={selectedAssetId} valued={selected} />
+        <AssetDetail
+          assetId={selectedAssetId}
+          valued={selected}
+          onAdd={() => {
+            setEditingAsset(null)
+            setAssetOpen(true)
+          }}
+          onEdit={(asset) => {
+            setEditingAsset(asset)
+            setAssetOpen(true)
+          }}
+          onDelete={(asset) => {
+            deleteAsset.mutate(asset.id, {
+              onSuccess: () => {
+                if (selectedAssetId === asset.id) setSelectedAssetId(null)
+              }
+            })
+          }}
+        />
       </aside>
+
+      <AssetFormDialog open={assetOpen} onOpenChange={setAssetOpen} asset={editingAsset} />
     </main>
   )
 }
@@ -118,8 +175,8 @@ function Shell({
         </h1>
         <p className="mt-2 max-w-xl text-sm text-ink-muted md:text-base">
           {tab === 'savings'
-            ? 'Your holdings in PLN — prices and FX cached locally with a 15-minute TTL.'
-            : 'Loans, e-raty, spending, and income — money going out and debt in one place.'}
+            ? 'Your holdings in PLN — edit locally; data stays in SQLite on this machine.'
+            : 'Loans, e-raty, spending, and income — enter real amounts in złoty.'}
         </p>
         <nav className="mt-4 flex gap-2" aria-label="Primary" role="tablist">
           <TabButton

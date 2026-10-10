@@ -1,12 +1,14 @@
 import { contextBridge, ipcRenderer } from 'electron'
-import { z } from 'zod'
 import {
   IpcChannels,
   IpcRequestSchemas,
   type CreateExpenseRequest,
   type CreateIncomeRequest,
   type GetAssetRequest,
-  type GetMonthSummaryRequest
+  type GetMonthSummaryRequest,
+  type IdRequest,
+  type UpsertAssetRequest,
+  type UpsertLiabilityRequest
 } from '../shared/ipc'
 import type {
   Asset,
@@ -28,53 +30,49 @@ function invokeValidated<T>(
   return ipcRenderer.invoke(channel, parsed) as Promise<T>
 }
 
-const getAssetRequestGuard = z.object({ id: z.string().uuid() })
-const createIncomeRequestGuard = z.object({
-  month: z.string().regex(/^\d{4}-\d{2}$/),
-  amountMinor: z.number().int(),
-  currency: z.string().min(3).max(3).default('PLN'),
-  note: z.string().nullable().optional(),
-  allocations: z
-    .array(z.object({ assetId: z.string().uuid(), amountMinor: z.number().int() }))
-    .default([])
-})
-const getMonthSummaryGuard = z.object({
-  month: z.string().regex(/^\d{4}-\d{2}$/)
-})
-const createExpenseGuard = z.object({
-  categoryId: z.string().uuid(),
-  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
-  amountMinor: z.number().int().positive(),
-  currency: z.string().min(3).max(3).default('PLN'),
-  note: z.string().nullable().optional(),
-  liabilityId: z.string().uuid().nullable().optional()
-})
-
 const api = {
   getDashboard: (): Promise<DashboardSnapshot> => invokeValidated(IpcChannels.getDashboard),
 
   listAssets: (): Promise<Asset[]> => invokeValidated(IpcChannels.listAssets),
 
   getAsset: (request: GetAssetRequest): Promise<ValuedAsset | null> =>
-    invokeValidated(IpcChannels.getAsset, getAssetRequestGuard.parse(request)),
+    invokeValidated(IpcChannels.getAsset, request),
+
+  upsertAsset: (request: UpsertAssetRequest): Promise<Asset> =>
+    invokeValidated(IpcChannels.upsertAsset, request),
+
+  deleteAsset: (request: IdRequest): Promise<{ ok: true }> =>
+    invokeValidated(IpcChannels.deleteAsset, request),
 
   listIncome: (): Promise<IncomeEntry[]> => invokeValidated(IpcChannels.listIncome),
 
   createIncome: (request: CreateIncomeRequest): Promise<IncomeEntry> =>
-    invokeValidated(IpcChannels.createIncome, createIncomeRequestGuard.parse(request)),
+    invokeValidated(IpcChannels.createIncome, request),
+
+  deleteIncome: (request: IdRequest): Promise<{ ok: true }> =>
+    invokeValidated(IpcChannels.deleteIncome, request),
 
   refreshPrices: (): Promise<DashboardSnapshot> => invokeValidated(IpcChannels.refreshPrices),
 
   listLiabilities: (): Promise<Liability[]> => invokeValidated(IpcChannels.listLiabilities),
 
+  upsertLiability: (request: UpsertLiabilityRequest): Promise<Liability> =>
+    invokeValidated(IpcChannels.upsertLiability, request),
+
+  deleteLiability: (request: IdRequest): Promise<{ ok: true }> =>
+    invokeValidated(IpcChannels.deleteLiability, request),
+
   listExpenseCategories: (): Promise<ExpenseCategory[]> =>
     invokeValidated(IpcChannels.listExpenseCategories),
 
   getMonthSummary: (request: GetMonthSummaryRequest): Promise<MonthSummary> =>
-    invokeValidated(IpcChannels.getMonthSummary, getMonthSummaryGuard.parse(request)),
+    invokeValidated(IpcChannels.getMonthSummary, request),
 
   createExpense: (request: CreateExpenseRequest): Promise<ExpenseEntry> =>
-    invokeValidated(IpcChannels.createExpense, createExpenseGuard.parse(request))
+    invokeValidated(IpcChannels.createExpense, request),
+
+  deleteExpense: (request: IdRequest): Promise<{ ok: true }> =>
+    invokeValidated(IpcChannels.deleteExpense, request)
 }
 
 export type NetWorthApi = typeof api

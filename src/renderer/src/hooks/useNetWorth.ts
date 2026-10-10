@@ -1,5 +1,10 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import type { CreateExpenseRequest, CreateIncomeRequest } from '@shared/ipc'
+import type {
+  CreateExpenseRequest,
+  CreateIncomeRequest,
+  UpsertAssetRequest,
+  UpsertLiabilityRequest
+} from '@shared/ipc'
 import type { ExpenseEntry, IncomeEntry } from '@shared/types'
 
 export const queryKeys = {
@@ -10,6 +15,15 @@ export const queryKeys = {
   liabilities: ['liabilities'] as const,
   expenseCategories: ['expenseCategories'] as const,
   monthSummary: (month: string) => ['monthSummary', month] as const
+}
+
+function invalidateMoney(qc: ReturnType<typeof useQueryClient>, month?: string): void {
+  void qc.invalidateQueries({ queryKey: queryKeys.dashboard })
+  void qc.invalidateQueries({ queryKey: queryKeys.assets })
+  void qc.invalidateQueries({ queryKey: queryKeys.liabilities })
+  void qc.invalidateQueries({ queryKey: queryKeys.income })
+  if (month) void qc.invalidateQueries({ queryKey: queryKeys.monthSummary(month) })
+  else void qc.invalidateQueries({ queryKey: ['monthSummary'] })
 }
 
 export function useDashboard() {
@@ -44,10 +58,10 @@ export function useCreateIncome() {
       const optimistic: IncomeEntry = {
         id: `optimistic-${Date.now()}`,
         month: input.month,
-        amountMinor: input.amountMinor,
+        amountMinor: Math.round(Number(input.amount) * 100),
         currency: input.currency ?? 'PLN',
         note: input.note ?? null,
-        allocations: input.allocations ?? [],
+        allocations: [],
         createdAt: new Date().toISOString()
       }
       qc.setQueryData<IncomeEntry[]>(queryKeys.income, (old) => [optimistic, ...(old ?? [])])
@@ -57,10 +71,16 @@ export function useCreateIncome() {
       if (ctx?.previous) qc.setQueryData(queryKeys.income, ctx.previous)
     },
     onSuccess: (_data, input) => {
-      void qc.invalidateQueries({ queryKey: queryKeys.income })
-      void qc.invalidateQueries({ queryKey: queryKeys.dashboard })
-      void qc.invalidateQueries({ queryKey: queryKeys.monthSummary(input.month) })
+      invalidateMoney(qc, input.month)
     }
+  })
+}
+
+export function useDeleteIncome(month: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (id: string) => window.api.deleteIncome({ id }),
+    onSuccess: () => invalidateMoney(qc, month)
   })
 }
 
@@ -100,8 +120,8 @@ export function useCreateExpense(month: string) {
       const categories = qc.getQueryData<Array<{ id: string; name: string }>>(
         queryKeys.expenseCategories
       )
-      const categoryName =
-        categories?.find((c) => c.id === input.categoryId)?.name ?? '…'
+      const categoryName = categories?.find((c) => c.id === input.categoryId)?.name ?? '…'
+      const amountMinor = Math.round(Number(input.amount) * 100)
 
       qc.setQueryData(queryKeys.monthSummary(month), (old: unknown) => {
         if (!old || typeof old !== 'object') return old
@@ -117,13 +137,13 @@ export function useCreateExpense(month: string) {
           categoryId: input.categoryId,
           categoryName,
           date: input.date,
-          amountMinor: input.amountMinor,
+          amountMinor,
           currency: input.currency ?? 'PLN',
           note: input.note ?? null,
           liabilityId: input.liabilityId ?? null,
           createdAt: new Date().toISOString()
         }
-        const expensesPlnMinor = summary.expensesPlnMinor + input.amountMinor
+        const expensesPlnMinor = summary.expensesPlnMinor + amountMinor
         return {
           ...summary,
           expenses: [optimistic, ...summary.expenses],
@@ -137,8 +157,46 @@ export function useCreateExpense(month: string) {
     onError: (_err, _input, ctx) => {
       if (ctx?.previous) qc.setQueryData(queryKeys.monthSummary(month), ctx.previous)
     },
-    onSuccess: () => {
-      void qc.invalidateQueries({ queryKey: queryKeys.monthSummary(month) })
-    }
+    onSuccess: () => invalidateMoney(qc, month)
+  })
+}
+
+export function useDeleteExpense(month: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (id: string) => window.api.deleteExpense({ id }),
+    onSuccess: () => invalidateMoney(qc, month)
+  })
+}
+
+export function useUpsertAsset() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (input: UpsertAssetRequest) => window.api.upsertAsset(input),
+    onSuccess: () => invalidateMoney(qc)
+  })
+}
+
+export function useDeleteAsset() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (id: string) => window.api.deleteAsset({ id }),
+    onSuccess: () => invalidateMoney(qc)
+  })
+}
+
+export function useUpsertLiability() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (input: UpsertLiabilityRequest) => window.api.upsertLiability(input),
+    onSuccess: () => invalidateMoney(qc)
+  })
+}
+
+export function useDeleteLiability() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (id: string) => window.api.deleteLiability({ id }),
+    onSuccess: () => invalidateMoney(qc)
   })
 }

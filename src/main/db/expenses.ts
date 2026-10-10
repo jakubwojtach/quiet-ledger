@@ -109,3 +109,8 @@ export function createExpenseEntry(input: {
     createdAt: row.created_at
   }
 }
+
+export function deleteExpenseEntry(id: string): { ok: true } {
+  getDb().prepare('DELETE FROM expense_entries WHERE id = ?').run(id)
+  return { ok: true }
+}

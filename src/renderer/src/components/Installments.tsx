@@ -1,11 +1,16 @@
 import { useMemo, useState, type FormEvent, type JSX } from 'react'
-import { formatMinorUnits, majorToMinor } from '@shared/money'
+import { formatMinorUnits } from '@shared/money'
+import type { Liability } from '@shared/types'
 import {
   useCreateExpense,
   useCreateIncome,
+  useDeleteExpense,
+  useDeleteIncome,
+  useDeleteLiability,
   useExpenseCategories,
   useMonthSummary
 } from '@renderer/hooks/useNetWorth'
+import { LiabilityFormDialog } from '@renderer/components/forms/LiabilityFormDialog'
 import { Button } from '@renderer/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@renderer/components/ui/card'
 import { Input } from '@renderer/components/ui/input'
@@ -30,6 +35,12 @@ export function Installments(): JSX.Element {
   const { data: categories } = useExpenseCategories()
   const createExpense = useCreateExpense(month)
   const createIncome = useCreateIncome()
+  const deleteExpense = useDeleteExpense(month)
+  const deleteIncome = useDeleteIncome(month)
+  const deleteLiability = useDeleteLiability()
+
+  const [liabilityOpen, setLiabilityOpen] = useState(false)
+  const [editingLiability, setEditingLiability] = useState<Liability | null>(null)
 
   const [expenseAmount, setExpenseAmount] = useState('50')
   const [expenseNote, setExpenseNote] = useState('')
@@ -67,7 +78,7 @@ export function Installments(): JSX.Element {
       await createExpense.mutateAsync({
         categoryId: resolvedCategoryId,
         date: expenseDate,
-        amountMinor: majorToMinor(major),
+        amount: major,
         currency: 'PLN',
         note: expenseNote.trim() || null,
         liabilityId: liabilityId || null
@@ -89,7 +100,7 @@ export function Installments(): JSX.Element {
     try {
       await createIncome.mutateAsync({
         month,
-        amountMinor: majorToMinor(major),
+        amount: major,
         currency: 'PLN',
         note: incomeNote.trim() || null,
         allocations: []
@@ -129,28 +140,52 @@ export function Installments(): JSX.Element {
   return (
     <div className="flex flex-col gap-4" data-testid="installments-view">
       <Card>
-        <CardHeader>
-          <CardDescription>Pożyczki & e-raty · remaining principal</CardDescription>
-          <CardTitle className="font-display text-3xl text-forest md:text-4xl">
-            {formatMinorUnits(totalPrincipalPln, 'PLN')}
-          </CardTitle>
-          <p className="text-xs text-ink-muted">
-            Monthly installment burden:{' '}
-            <span className="font-medium text-ink">
-              {formatMinorUnits(data.installmentsPlnMinor, 'PLN')}
-            </span>
-          </p>
+        <CardHeader className="flex flex-row flex-wrap items-start justify-between gap-3">
+          <div>
+            <CardDescription>Pożyczki & e-raty · remaining principal</CardDescription>
+            <CardTitle className="font-display text-3xl text-forest md:text-4xl">
+              {formatMinorUnits(totalPrincipalPln, 'PLN')}
+            </CardTitle>
+            <p className="text-xs text-ink-muted">
+              Monthly installment burden:{' '}
+              <span className="font-medium text-ink">
+                {formatMinorUnits(data.installmentsPlnMinor, 'PLN')}
+              </span>
+            </p>
+          </div>
+          <Button
+            data-testid="add-liability-btn"
+            onClick={() => {
+              setEditingLiability(null)
+              setLiabilityOpen(true)
+            }}
+          >
+            Add installment
+          </Button>
         </CardHeader>
         <CardContent className="space-y-2">
           {data.liabilities.length === 0 ? (
-            <p className="text-sm text-ink-muted">No loans or installments yet.</p>
+            <div className="rounded-lg border border-dashed border-line px-4 py-6 text-center">
+              <p className="text-sm text-ink-muted">No loans or e-raty yet.</p>
+              <Button
+                className="mt-3"
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  setEditingLiability(null)
+                  setLiabilityOpen(true)
+                }}
+              >
+                Add installment
+              </Button>
+            </div>
           ) : (
             data.liabilities.map((v) => (
               <div
                 key={v.liability.id}
-                className="flex items-center justify-between rounded-lg bg-paper-deep/60 px-3 py-2.5 text-sm"
+                className="flex items-center justify-between gap-3 rounded-lg bg-paper-deep/60 px-3 py-2.5 text-sm"
               >
-                <div>
+                <div className="min-w-0">
                   <div className="font-medium">{v.liability.name}</div>
                   <div className="text-xs text-ink-muted">
                     {v.liability.provider ?? 'Loan'}
@@ -159,15 +194,44 @@ export function Installments(): JSX.Element {
                     {formatMinorUnits(v.monthlyPaymentPlnMinor, 'PLN')}/mo
                   </div>
                 </div>
-                <div className="text-right tabular-nums">
-                  <div className="font-medium">{formatMinorUnits(v.principalPlnMinor, 'PLN')}</div>
-                  <div className="text-xs text-ink-muted">principal</div>
+                <div className="flex shrink-0 items-center gap-2">
+                  <div className="text-right tabular-nums">
+                    <div className="font-medium">{formatMinorUnits(v.principalPlnMinor, 'PLN')}</div>
+                    <div className="text-xs text-ink-muted">principal</div>
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                      setEditingLiability(v.liability)
+                      setLiabilityOpen(true)
+                    }}
+                  >
+                    Edit
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                      if (confirm(`Delete “${v.liability.name}”?`)) {
+                        deleteLiability.mutate(v.liability.id)
+                      }
+                    }}
+                  >
+                    Delete
+                  </Button>
                 </div>
               </div>
             ))
           )}
         </CardContent>
       </Card>
+
+      <LiabilityFormDialog
+        open={liabilityOpen}
+        onOpenChange={setLiabilityOpen}
+        liability={editingLiability}
+      />
 
       <Card>
         <CardHeader className="flex flex-row flex-wrap items-end justify-between gap-3">
@@ -235,7 +299,7 @@ export function Installments(): JSX.Element {
       </Card>
 
       <div className="grid gap-4 lg:grid-cols-2">
-        <Card>
+        <Card data-testid="add-expense-card">
           <CardHeader>
             <CardTitle>Add expense</CardTitle>
             <CardDescription>Food, transport, and other spending</CardDescription>
@@ -345,12 +409,23 @@ export function Installments(): JSX.Element {
               {data.income.map((entry) => (
                 <div
                   key={entry.id}
-                  className="flex justify-between rounded-lg bg-paper-deep/60 px-3 py-2 text-sm"
+                  className="flex items-center justify-between gap-2 rounded-lg bg-paper-deep/60 px-3 py-2 text-sm"
                 >
                   <span>{entry.note || 'Income'}</span>
-                  <span className="tabular-nums font-medium">
-                    {formatMinorUnits(entry.amountMinor, entry.currency)}
-                  </span>
+                  <div className="flex items-center gap-2">
+                    <span className="tabular-nums font-medium">
+                      {formatMinorUnits(entry.amountMinor, entry.currency)}
+                    </span>
+                    {!entry.id.startsWith('optimistic-') && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => deleteIncome.mutate(entry.id)}
+                      >
+                        Delete
+                      </Button>
+                    )}
+                  </div>
                 </div>
               ))}
             </div>
@@ -372,7 +447,7 @@ export function Installments(): JSX.Element {
             data.expenses.map((entry) => (
               <div
                 key={entry.id}
-                className={`flex items-center justify-between rounded-lg bg-paper-deep/60 px-3 py-2 text-sm ${
+                className={`flex items-center justify-between gap-2 rounded-lg bg-paper-deep/60 px-3 py-2 text-sm ${
                   entry.id.startsWith('optimistic-') ? 'opacity-70' : ''
                 }`}
               >
@@ -383,8 +458,19 @@ export function Installments(): JSX.Element {
                   </div>
                   <div className="text-xs text-ink-muted">{entry.note || '—'}</div>
                 </div>
-                <div className="tabular-nums font-medium">
-                  {formatMinorUnits(entry.amountMinor, entry.currency)}
+                <div className="flex items-center gap-2">
+                  <div className="tabular-nums font-medium">
+                    {formatMinorUnits(entry.amountMinor, entry.currency)}
+                  </div>
+                  {!entry.id.startsWith('optimistic-') && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => deleteExpense.mutate(entry.id)}
+                    >
+                      Delete
+                    </Button>
+                  )}
                 </div>
               </div>
             ))

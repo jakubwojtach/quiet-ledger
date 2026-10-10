@@ -44,7 +44,8 @@ export function getLiabilityById(id: string): Liability | null {
   return row ? rowToLiability(row) : null
 }
 
-export function createLiability(input: {
+export function upsertLiability(input: {
+  id?: string
   name: string
   provider?: string | null
   principalMinor: number
@@ -53,8 +54,11 @@ export function createLiability(input: {
   nextDueDate?: string | null
   notes?: string | null
 }): Liability {
-  const id = randomUUID()
+  const id = input.id ?? randomUUID()
   const now = new Date().toISOString()
+  const existing = input.id ? getLiabilityById(input.id) : null
+  const createdAt = existing?.createdAt ?? now
+
   getDb()
     .prepare(
       `INSERT INTO liabilities (
@@ -63,7 +67,16 @@ export function createLiability(input: {
       ) VALUES (
         @id, @name, @provider, @principalMinor, @monthlyPaymentMinor, @currency,
         @nextDueDate, @notes, @createdAt, @updatedAt
-      )`
+      )
+      ON CONFLICT(id) DO UPDATE SET
+        name = excluded.name,
+        provider = excluded.provider,
+        principal_minor = excluded.principal_minor,
+        monthly_payment_minor = excluded.monthly_payment_minor,
+        currency = excluded.currency,
+        next_due_date = excluded.next_due_date,
+        notes = excluded.notes,
+        updated_at = excluded.updated_at`
     )
     .run({
       id,
@@ -74,8 +87,16 @@ export function createLiability(input: {
       currency: input.currency,
       nextDueDate: input.nextDueDate ?? null,
       notes: input.notes ?? null,
-      createdAt: now,
+      createdAt,
       updatedAt: now
     })
   return getLiabilityById(id)!
+}
+
+/** @deprecated use upsertLiability */
+export const createLiability = upsertLiability
+
+export function deleteLiability(id: string): { ok: true } {
+  getDb().prepare('DELETE FROM liabilities WHERE id = ?').run(id)
+  return { ok: true }
 }
