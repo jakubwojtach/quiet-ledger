@@ -1,15 +1,18 @@
 import { listAssets, getAssetById, QUANTITY_SCALE } from '../db'
+import { listLiabilities } from '../db/liabilities'
 import { convertToPlnMinor } from './fx'
 import { getEquityPrice } from './prices'
+import { emitLocalEvent } from '../hooks/localEvents'
 import {
   ASSET_CLASS_LABELS,
   type Asset,
   type AssetClass,
   type ClassBreakdown,
   type DashboardSnapshot,
-  type ValuedAsset
+  type Liability,
+  type ValuedAsset,
+  type ValuedLiability
 } from '@shared/types'
-import { BASE_CURRENCY } from '@shared/money'
 
 async function valueAsset(asset: Asset): Promise<ValuedAsset> {
   switch (asset.class) {
@@ -31,7 +34,6 @@ async function valueAsset(asset: Asset): Promise<ValuedAsset> {
       }
     }
     case 'bond': {
-      // nominal is face value in minor; unit_value is price per 100 face (×100 scale like 98.50 → 9850)
       const faceMajor = asset.nominalMinor / 100
       const pricePercent = asset.unitValueMinor / 100
       const nativeValueMinor = Math.round(faceMajor * (pricePercent / 100) * 100)
@@ -99,6 +101,17 @@ async function valueAsset(asset: Asset): Promise<ValuedAsset> {
   }
 }
 
+export async function valueLiability(liability: Liability): Promise<ValuedLiability> {
+  const principal = await convertToPlnMinor(liability.principalMinor, liability.currency)
+  const payment = await convertToPlnMinor(liability.monthlyPaymentMinor, liability.currency)
+  return {
+    liability,
+    principalPlnMinor: principal.plnMinor,
+    monthlyPaymentPlnMinor: payment.plnMinor,
+    priceStale: principal.stale || payment.stale
+  }
+}
+
 export async function getValuedAsset(id: string): Promise<ValuedAsset | null> {
   const asset = getAssetById(id)
   if (!asset) return null
@@ -107,38 +120,58 @@ export async function getValuedAsset(id: string): Promise<ValuedAsset | null> {
 
 export async function buildDashboard(): Promise<DashboardSnapshot> {
   const assets = listAssets()
+  const liabilities = listLiabilities()
   const valued = await Promise.all(assets.map(valueAsset))
+  const valuedLiabilities = await Promise.all(liabilities.map(valueLiability))
 
   const byClass = new Map<AssetClass, number>()
-  let totalPlnMinor = 0
+  let totalAssetsPlnMinor = 0
   let fxStale = false
 
   for (const v of valued) {
-    totalPlnMinor += v.plnValueMinor
+    totalAssetsPlnMinor += v.plnValueMinor
     byClass.set(v.asset.class, (byClass.get(v.asset.class) ?? 0) + v.plnValueMinor)
     if (v.priceStale) fxStale = true
   }
+
+  let totalLiabilitiesPlnMinor = 0
+  for (const l of valuedLiabilities) {
+    totalLiabilitiesPlnMinor += l.principalPlnMinor
+    if (l.priceStale) fxStale = true
+  }
+
+  const netWorthPlnMinor = totalAssetsPlnMinor - totalLiabilitiesPlnMinor
 
   const breakdown: ClassBreakdown[] = [...byClass.entries()]
     .map(([cls, plnValueMinor]) => ({
       class: cls,
       label: ASSET_CLASS_LABELS[cls],
       plnValueMinor,
-      percentOfTotal: totalPlnMinor === 0 ? 0 : (plnValueMinor / totalPlnMinor) * 100
+      percentOfTotal:
+        totalAssetsPlnMinor === 0 ? 0 : (plnValueMinor / totalAssetsPlnMinor) * 100
     }))
     .sort((a, b) => b.plnValueMinor - a.plnValueMinor)
 
-  return {
-    totalPlnMinor,
+  const snapshot: DashboardSnapshot = {
+    totalAssetsPlnMinor,
+    totalLiabilitiesPlnMinor,
+    netWorthPlnMinor,
+    totalPlnMinor: netWorthPlnMinor,
     breakdown,
     assets: valued.sort((a, b) => b.plnValueMinor - a.plnValueMinor),
+    liabilities: valuedLiabilities.sort((a, b) => b.principalPlnMinor - a.principalPlnMinor),
     asOf: new Date().toISOString(),
     fxStale
   }
+
+  emitLocalEvent('dashboard.updated', {
+    netWorthPlnMinor: snapshot.netWorthPlnMinor,
+    asOf: snapshot.asOf
+  })
+
+  return snapshot
 }
 
 export async function refreshAllPrices(): Promise<DashboardSnapshot> {
-  // Force re-fetch by valuing everything (services check TTL; callers may clear cache later)
-  void BASE_CURRENCY
   return buildDashboard()
 }

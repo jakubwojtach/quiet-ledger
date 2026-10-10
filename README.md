@@ -37,7 +37,12 @@ npm run build       # production build
 npm start           # preview production build via electron-vite
 ```
 
-SQLite data lives under the Electron `userData` directory (`networth.sqlite`). First launch seeds demo holdings.
+SQLite data lives under the Electron `userData` directory (`networth.sqlite`). First launch seeds demo holdings, liabilities, expense categories, and sample expenses.
+
+### UI tabs
+
+1. **Net worth** — assets, liabilities (principal + monthly payment), net = assets − liabilities, holdings detail
+2. **This month** — income, expenses by category, installment cashflow sketch (income − expenses − scheduled installments)
 
 ## Key paths
 
@@ -45,17 +50,22 @@ SQLite data lives under the Electron `userData` directory (`networth.sqlite`). F
 | --- | --- |
 | Schema / seed | `src/main/db/schema.ts` |
 | DB access | `src/main/db/index.ts` |
+| Liabilities | `src/main/db/liabilities.ts` |
+| Expenses | `src/main/db/expenses.ts` |
 | Shared types | `src/shared/types.ts` |
 | IPC channels + Zod | `src/shared/ipc.ts` |
-| Valuation service | `src/main/services/valuation.ts` |
-| FX cache | `src/main/services/fx.ts` |
-| Equity prices | `src/main/services/prices.ts` |
+| Valuation (net of debt) | `src/main/services/valuation.ts` |
+| Month summary | `src/main/services/monthSummary.ts` |
+| Local events hook (future HA) | `src/main/hooks/localEvents.ts` |
 | Preload API | `src/preload/index.ts` |
-| Example UI | `src/renderer/src/components/Dashboard.tsx` |
+| Net worth UI | `src/renderer/src/components/Dashboard.tsx` |
+| This month UI | `src/renderer/src/components/ThisMonth.tsx` |
 
-## Features in this slice
+## Features
 
-- Dashboard: total net worth in PLN and % breakdown by asset class
+- Dashboard: net worth in PLN, assets / liabilities / net, % breakdown by asset class
+- Liabilities: remaining principal, monthly payment, optional next due
 - Per-asset detail: native value, PLN value, last updated
-- Monthly income log with optional allocation to an asset
-- Optimistic TanStack Query mutations (income) with invalidate-on-success
+- This month: expense categories + entries, income log, cashflow sketch
+- Optimistic TanStack Query mutations with invalidate-on-success
+- Thin `emitLocalEvent` hook for a future Home Assistant / MCP integration (no HA built yet)

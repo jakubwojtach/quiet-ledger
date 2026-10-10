@@ -96,10 +96,39 @@ export interface ClassBreakdown {
   percentOfTotal: number
 }
 
+/** Installment loan / e-raty style liability */
+export interface Liability {
+  id: string
+  name: string
+  provider: string | null
+  principalMinor: MinorUnits
+  monthlyPaymentMinor: MinorUnits
+  currency: CurrencyCode
+  nextDueDate: string | null
+  notes: string | null
+  createdAt: string
+  updatedAt: string
+}
+
+export interface ValuedLiability {
+  liability: Liability
+  principalPlnMinor: MinorUnits
+  monthlyPaymentPlnMinor: MinorUnits
+  priceStale: boolean
+}
+
 export interface DashboardSnapshot {
+  /** Gross assets in PLN */
+  totalAssetsPlnMinor: MinorUnits
+  /** Remaining principal of all liabilities in PLN */
+  totalLiabilitiesPlnMinor: MinorUnits
+  /** Assets − liabilities */
+  netWorthPlnMinor: MinorUnits
+  /** @deprecated use netWorthPlnMinor — kept for older UI callers */
   totalPlnMinor: MinorUnits
   breakdown: ClassBreakdown[]
   assets: ValuedAsset[]
+  liabilities: ValuedLiability[]
   asOf: string
   fxStale: boolean
 }
@@ -126,6 +155,48 @@ export interface CreateIncomeInput {
   currency?: CurrencyCode
   note?: string | null
   allocations: IncomeAllocation[]
+}
+
+export interface ExpenseCategory {
+  id: string
+  name: string
+  sortOrder: number
+}
+
+export interface ExpenseEntry {
+  id: string
+  categoryId: string
+  categoryName: string
+  /** Calendar date YYYY-MM-DD */
+  date: string
+  amountMinor: MinorUnits
+  currency: CurrencyCode
+  note: string | null
+  /** Optional link to a liability installment payment */
+  liabilityId: string | null
+  createdAt: string
+}
+
+export interface CategorySpend {
+  categoryId: string
+  categoryName: string
+  amountPlnMinor: MinorUnits
+  percentOfTotal: number
+}
+
+export interface MonthSummary {
+  month: string
+  incomePlnMinor: MinorUnits
+  expensesPlnMinor: MinorUnits
+  /** Sum of liability monthly payments (cashflow sketch) */
+  installmentsPlnMinor: MinorUnits
+  /** income − expenses − installments */
+  cashflowPlnMinor: MinorUnits
+  expensesByCategory: CategorySpend[]
+  expenses: ExpenseEntry[]
+  income: IncomeEntry[]
+  liabilities: ValuedLiability[]
+  fxStale: boolean
 }
 
 export const QUANTITY_SCALE = 1_000_000
