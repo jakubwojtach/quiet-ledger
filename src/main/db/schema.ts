@@ -87,12 +87,34 @@ CREATE TABLE IF NOT EXISTS income_allocations (
   amount_minor INTEGER NOT NULL
 );
 
+-- One purchase of an ETF, bond series or fund. When a holding has lots, its
+-- quantity / units / nominal and cost basis are the sums of its lots.
+CREATE TABLE IF NOT EXISTS asset_lots (
+  id TEXT PRIMARY KEY NOT NULL,
+  asset_id TEXT NOT NULL REFERENCES assets(id) ON DELETE CASCADE,
+  date TEXT NOT NULL,
+  -- units ×1e6; for bonds the number of bonds
+  quantity_scaled INTEGER NOT NULL,
+  -- price per unit in price_currency ×1e4
+  price_scaled INTEGER,
+  price_currency TEXT,
+  paid_minor INTEGER NOT NULL,
+  paid_currency TEXT NOT NULL,
+  -- bond code, e.g. EDO0335
+  series TEXT,
+  -- 1 when worked out rather than read from a statement (opening balance, NAV-derived units)
+  estimated INTEGER NOT NULL DEFAULT 0,
+  note TEXT,
+  created_at TEXT NOT NULL
+);
+
 CREATE TABLE IF NOT EXISTS app_meta (
   key TEXT PRIMARY KEY NOT NULL,
   value TEXT NOT NULL
 );
 
 CREATE INDEX IF NOT EXISTS idx_assets_class ON assets(class);
+CREATE INDEX IF NOT EXISTS idx_asset_lots_asset ON asset_lots(asset_id, date);
 CREATE INDEX IF NOT EXISTS idx_income_month ON income_entries(month);
 CREATE INDEX IF NOT EXISTS idx_expense_date ON expense_entries(date);
 CREATE INDEX IF NOT EXISTS idx_price_cache_fetched ON price_cache(fetched_at);

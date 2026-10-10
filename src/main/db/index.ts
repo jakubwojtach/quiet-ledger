@@ -97,9 +97,13 @@ type AssetRow = {
   valued_on: string | null
   value_source: string | null
   account: string | null
+  lot_count: number
   created_at: string
   updated_at: string
 }
+
+const SELECT_ASSETS = `SELECT a.*, (SELECT COUNT(*) FROM asset_lots l WHERE l.asset_id = a.id) AS lot_count
+  FROM assets a`
 
 function rowToAsset(row: AssetRow): Asset {
   const base = {
@@ -107,6 +111,7 @@ function rowToAsset(row: AssetRow): Asset {
     name: row.name,
     notes: row.notes,
     account: row.account,
+    lotCount: row.lot_count,
     createdAt: row.created_at,
     updatedAt: row.updated_at
   }
@@ -169,12 +174,12 @@ function rowToAsset(row: AssetRow): Asset {
 }
 
 export function listAssets(): Asset[] {
-  const rows = getDb().prepare('SELECT * FROM assets ORDER BY class, name').all() as AssetRow[]
+  const rows = getDb().prepare(`${SELECT_ASSETS} ORDER BY a.class, a.name`).all() as AssetRow[]
   return rows.map(rowToAsset)
 }
 
 export function getAssetById(id: string): Asset | null {
-  const row = getDb().prepare('SELECT * FROM assets WHERE id = ?').get(id) as AssetRow | undefined
+  const row = getDb().prepare(`${SELECT_ASSETS} WHERE a.id = ?`).get(id) as AssetRow | undefined
   return row ? rowToAsset(row) : null
 }
 

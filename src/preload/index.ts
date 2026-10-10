@@ -7,19 +7,23 @@ import {
   type GetAssetRequest,
   type GetMonthSummaryRequest,
   type IdRequest,
+  type ListLotsRequest,
   type UpsertAssetRequest,
-  type UpsertLiabilityRequest
+  type UpsertLiabilityRequest,
+  type UpsertLotRequest
 } from '../shared/ipc'
 import type { DatabaseInfo } from '../shared/dataDirs'
 import type {
   Asset,
+  AssetLot,
   DashboardSnapshot,
   ExpenseCategory,
   ExpenseEntry,
   IncomeEntry,
   Liability,
   MonthSummary,
-  ValuedAsset
+  ValuedAsset,
+  ValuedLot
 } from '../shared/types'
 
 function invokeValidated<T>(
@@ -75,7 +79,16 @@ const api = {
   deleteExpense: (request: IdRequest): Promise<{ ok: true }> =>
     invokeValidated(IpcChannels.deleteExpense, request),
 
-  getDatabaseInfo: (): Promise<DatabaseInfo> => invokeValidated(IpcChannels.getDatabaseInfo)
+  getDatabaseInfo: (): Promise<DatabaseInfo> => invokeValidated(IpcChannels.getDatabaseInfo),
+
+  listLots: (request: ListLotsRequest): Promise<ValuedLot[]> =>
+    invokeValidated(IpcChannels.listLots, request),
+
+  upsertLot: (request: UpsertLotRequest): Promise<AssetLot> =>
+    invokeValidated(IpcChannels.upsertLot, request),
+
+  deleteLot: (request: IdRequest): Promise<{ ok: true }> =>
+    invokeValidated(IpcChannels.deleteLot, request)
 }
 
 export type NetWorthApi = typeof api

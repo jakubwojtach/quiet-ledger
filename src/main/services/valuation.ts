@@ -1,5 +1,6 @@
 import { listAssets, getAssetById, QUANTITY_SCALE } from '../db'
 import { listLiabilities } from '../db/liabilities'
+import { listLots } from '../db/lots'
 import { convertToPlnMinor } from './fx'
 import { getEquityPrice, getFundNav } from './prices'
 import { emitLocalEvent } from '../hooks/localEvents'
@@ -9,9 +10,11 @@ import {
   type AssetClass,
   type ClassBreakdown,
   type DashboardSnapshot,
+  supportsLots,
   type Liability,
   type ValuedAsset,
-  type ValuedLiability
+  type ValuedLiability,
+  type ValuedLot
 } from '@shared/types'
 import { catalogEstimateFor, type CatalogEstimate } from '@shared/valuationFormulas'
 
@@ -174,6 +177,44 @@ export async function getValuedAsset(id: string): Promise<ValuedAsset | null> {
   const asset = getAssetById(id)
   if (!asset) return null
   return valueAsset(asset)
+}
+
+/**
+ * Each purchase valued at today's price. Bond lots get their share of the holding's statement
+ * value by amount paid, since the statement does not split value per purchase.
+ */
+export async function getValuedLots(assetId: string): Promise<ValuedLot[]> {
+  const asset = getAssetById(assetId)
+  if (!asset || !supportsLots(asset.class)) return []
+  const lots = listLots(assetId)
+  if (lots.length === 0) return []
+
+  const market = await valueAssetMarket(asset)
+  const totalPaid = lots.reduce((sum, lot) => sum + lot.paidMinor, 0)
+
+  return Promise.all(
+    lots.map(async (lot): Promise<ValuedLot> => {
+      const qty = lot.quantityScaled / QUANTITY_SCALE
+      const nativeValueMinor =
+        asset.class === 'bond'
+          ? totalPaid === 0
+            ? 0
+            : Math.round((market.nativeValueMinor * lot.paidMinor) / totalPaid)
+          : Math.round(qty * (market.unitPrice ?? 0) * 100)
+      const value = await convertToPlnMinor(nativeValueMinor, market.nativeCurrency)
+      const paid = await convertToPlnMinor(lot.paidMinor, lot.paidCurrency)
+      const known = !market.priceMissing && paid.plnMinor > 0
+      const gainPlnMinor = known ? value.plnMinor - paid.plnMinor : null
+      return {
+        lot,
+        plnValueMinor: value.plnMinor,
+        paidPlnMinor: paid.plnMinor,
+        gainPlnMinor,
+        gainPercent: gainPlnMinor == null ? null : (gainPlnMinor / paid.plnMinor) * 100,
+        valueIsShare: asset.class === 'bond'
+      }
+    })
+  )
 }
 
 export async function buildDashboard(): Promise<DashboardSnapshot> {

@@ -6,10 +6,18 @@ import {
   getAssetRequestSchema,
   getMonthSummaryRequestSchema,
   idRequestSchema,
+  listLotsRequestSchema,
   upsertAssetRequestSchema,
-  upsertLiabilityRequestSchema
+  upsertLiabilityRequestSchema,
+  upsertLotRequestSchema
 } from '@shared/ipc'
-import { buildDashboard, getValuedAsset, refreshAllPrices } from '../services/valuation'
+import {
+  buildDashboard,
+  getValuedAsset,
+  getValuedLots,
+  refreshAllPrices
+} from '../services/valuation'
+import { deleteLot, upsertLot } from '../db/lots'
 import { buildMonthSummary } from '../services/monthSummary'
 import {
   createIncomeEntry,
@@ -120,4 +128,19 @@ export function registerIpcHandlers(): void {
   })
 
   ipcMain.handle(IpcChannels.getDatabaseInfo, async () => getDatabaseInfo())
+
+  ipcMain.handle(IpcChannels.listLots, async (_event, raw: unknown) => {
+    const { assetId } = listLotsRequestSchema.parse(raw)
+    return getValuedLots(assetId)
+  })
+
+  ipcMain.handle(IpcChannels.upsertLot, async (_event, raw: unknown) => {
+    const input = upsertLotRequestSchema.parse(raw)
+    return upsertLot(input)
+  })
+
+  ipcMain.handle(IpcChannels.deleteLot, async (_event, raw: unknown) => {
+    const { id } = idRequestSchema.parse(raw)
+    return deleteLot(id)
+  })
 }

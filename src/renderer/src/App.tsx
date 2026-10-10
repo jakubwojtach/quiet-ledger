@@ -1,10 +1,25 @@
 import { useEffect, useRef, useState, type JSX, type ReactNode } from 'react'
-import { Dashboard } from '@renderer/components/Dashboard'
+import {
+  HashRouter,
+  Navigate,
+  Route,
+  Routes,
+  useLocation,
+  useNavigate,
+  useParams
+} from 'react-router-dom'
+import { ClassBreakdownCard, TotalSavingsCard } from '@renderer/components/Dashboard'
 import { HoldingsList } from '@renderer/components/HoldingsList'
 import { AssetDetail } from '@renderer/components/AssetDetail'
-import { Installments } from '@renderer/components/Installments'
+import {
+  InstallmentsExpensesPage,
+  InstallmentsIncomePage,
+  InstallmentsLayout,
+  InstallmentsLoansPage,
+  InstallmentsOverviewPage
+} from '@renderer/components/Installments'
 import { AssetFormDialog } from '@renderer/components/forms/AssetFormDialog'
-import { useDashboard, useDatabaseInfo, useDeleteAsset } from '@renderer/hooks/useNetWorth'
+import { useDashboard, useDeleteAsset } from '@renderer/hooks/useNetWorth'
 import type { Asset } from '@shared/types'
 import { Button } from '@renderer/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@renderer/components/ui/card'
@@ -12,10 +27,7 @@ import { cn } from '@renderer/lib/utils'
 
 type Tab = 'savings' | 'installments'
 
-const TAB_COPY: Record<
-  Tab,
-  { eyebrow: string; title: string; subtitle: string }
-> = {
+const TAB_COPY: Record<Tab, { eyebrow: string; title: string; subtitle: string }> = {
   savings: {
     eyebrow: 'Savings',
     title: 'Savings',
@@ -24,32 +36,54 @@ const TAB_COPY: Record<
   installments: {
     eyebrow: 'Installments',
     title: 'Installments',
-    subtitle: 'Loans, e-raty, spending, and income — enter real amounts in złoty.'
+    subtitle: 'Month-by-month cashflow, expenses, income, and loans.'
   }
 }
 
 export default function App(): JSX.Element {
-  const [tab, setTab] = useState<Tab>('savings')
-
   return (
-    <Shell tab={tab} onTabChange={setTab}>
-      {tab === 'savings' ? <SavingsTab /> : <Installments />}
-    </Shell>
+    <HashRouter>
+      <Routes>
+        <Route path="/" element={<Navigate to="/savings" replace />} />
+        <Route
+          path="/savings"
+          element={
+            <Shell tab="savings">
+              <SavingsListPage />
+            </Shell>
+          }
+        />
+        <Route
+          path="/savings/:assetId"
+          element={
+            <Shell tab="savings">
+              <HoldingPage />
+            </Shell>
+          }
+        />
+        <Route
+          path="/installments"
+          element={
+            <Shell tab="installments">
+              <InstallmentsLayout />
+            </Shell>
+          }
+        >
+          <Route index element={<InstallmentsOverviewPage />} />
+          <Route path="expenses" element={<InstallmentsExpensesPage />} />
+          <Route path="income" element={<InstallmentsIncomePage />} />
+          <Route path="loans" element={<InstallmentsLoansPage />} />
+        </Route>
+        <Route path="*" element={<Navigate to="/savings" replace />} />
+      </Routes>
+    </HashRouter>
   )
 }
 
-function SavingsTab(): JSX.Element {
+function SavingsListPage(): JSX.Element {
+  const navigate = useNavigate()
   const { data: dashboard, isLoading, isError, error, refetch, isFetching } = useDashboard()
-  const deleteAsset = useDeleteAsset()
-  const [selectedAssetId, setSelectedAssetId] = useState<string | null>(null)
   const [assetOpen, setAssetOpen] = useState(false)
-  const [editingAsset, setEditingAsset] = useState<Asset | null>(null)
-
-  useEffect(() => {
-    if (selectedAssetId != null) return
-    const first = dashboard?.assets[0]?.asset.id
-    if (first) setSelectedAssetId(first)
-  }, [dashboard, selectedAssetId])
 
   if (isLoading) {
     return (
@@ -77,115 +111,107 @@ function SavingsTab(): JSX.Element {
     )
   }
 
-  const selected = dashboard.assets.find((a) => a.asset.id === selectedAssetId) ?? null
-
   return (
-    <main className="grid items-start gap-4 lg:grid-cols-[1.15fr_0.85fr]" data-testid="savings-view">
-      <section className="min-w-0">
-        <Dashboard data={dashboard} isFetching={isFetching} />
-      </section>
+    <main className="flex w-full min-w-0 flex-col gap-4" data-testid="savings-view">
+      <TotalSavingsCard data={dashboard} isFetching={isFetching} />
 
-      <aside className="flex min-w-0 flex-col gap-4">
-        <Card>
-          <CardHeader className="flex flex-row flex-wrap items-start justify-between gap-3">
-            <div>
-              <CardTitle>Holdings</CardTitle>
-              <CardDescription>Select an asset for native and PLN detail</CardDescription>
-            </div>
-            <Button
-              data-testid="add-asset-btn"
-              onClick={() => {
-                setEditingAsset(null)
-                setAssetOpen(true)
-              }}
-            >
-              Add holding
-            </Button>
-          </CardHeader>
-          <CardContent>
-            {dashboard.assets.length === 0 ? (
-              <div className="rounded-lg border border-dashed border-line px-4 py-8 text-center">
-                <p className="text-sm text-ink-muted">No holdings yet — add your first asset.</p>
-                <Button
-                  className="mt-3"
-                  variant="outline"
-                  onClick={() => {
-                    setEditingAsset(null)
-                    setAssetOpen(true)
-                  }}
-                >
-                  Add holding
-                </Button>
+      {/* Breakdown sets the row height; holdings matches it and scrolls inside. */}
+      <div className="grid w-full min-w-0 items-stretch gap-4 lg:grid-cols-[1.15fr_0.85fr]">
+        <section className="min-w-0">
+          <ClassBreakdownCard data={dashboard} />
+        </section>
+
+        <aside className="min-h-0 min-w-0 lg:h-0 lg:min-h-full">
+          <Card className="flex h-full min-h-0 flex-col overflow-hidden">
+            <CardHeader className="flex shrink-0 flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-start sm:justify-between">
+              <div>
+                <CardTitle>Holdings</CardTitle>
+                <CardDescription>Open a holding for purchases and detail</CardDescription>
               </div>
-            ) : (
-              <>
-                <label
-                  className="mb-3 block text-xs font-medium text-ink-muted"
-                  htmlFor="holding-select"
-                >
-                  Jump to holding
-                </label>
-                <select
-                  id="holding-select"
-                  className="mb-3 flex h-10 w-full rounded-md border border-line bg-white px-3 text-sm"
-                  value={selectedAssetId ?? ''}
-                  onChange={(e) => setSelectedAssetId(e.target.value)}
-                >
-                  {dashboard.assets.map((v) => (
-                    <option key={v.asset.id} value={v.asset.id}>
-                      {v.asset.name}
-                    </option>
-                  ))}
-                </select>
+              <Button data-testid="add-asset-btn" onClick={() => setAssetOpen(true)}>
+                Add holding
+              </Button>
+            </CardHeader>
+            <CardContent className="min-h-0 flex-1 overflow-y-auto">
+              {dashboard.assets.length === 0 ? (
+                <div className="rounded-lg border border-dashed border-line px-4 py-8 text-center">
+                  <p className="text-sm text-ink-muted">No holdings yet — add your first asset.</p>
+                  <Button className="mt-3" variant="outline" onClick={() => setAssetOpen(true)}>
+                    Add holding
+                  </Button>
+                </div>
+              ) : (
                 <HoldingsList
                   assets={dashboard.assets}
-                  selectedAssetId={selectedAssetId}
-                  onSelectAsset={setSelectedAssetId}
+                  onOpenAsset={(id) => navigate(`/savings/${id}`)}
                 />
-              </>
-            )}
-          </CardContent>
-        </Card>
+              )}
+            </CardContent>
+          </Card>
+        </aside>
+      </div>
 
-        <AssetDetail
-          assetId={selectedAssetId}
-          valued={selected}
-          onAdd={() => {
-            setEditingAsset(null)
-            setAssetOpen(true)
-          }}
-          onEdit={(asset) => {
-            setEditingAsset(asset)
-            setAssetOpen(true)
-          }}
-          onDelete={(asset) => {
-            deleteAsset.mutate(asset.id, {
-              onSuccess: () => {
-                if (selectedAssetId === asset.id) setSelectedAssetId(null)
-              }
-            })
-          }}
-        />
-      </aside>
+      <AssetFormDialog open={assetOpen} onOpenChange={setAssetOpen} asset={null} />
+    </main>
+  )
+}
 
+function HoldingPage(): JSX.Element {
+  const { assetId = '' } = useParams()
+  const navigate = useNavigate()
+  const { data: dashboard } = useDashboard()
+  const deleteAsset = useDeleteAsset()
+  const [assetOpen, setAssetOpen] = useState(false)
+  const [editingAsset, setEditingAsset] = useState<Asset | null>(null)
+
+  const valued = dashboard?.assets.find((a) => a.asset.id === assetId) ?? null
+
+  return (
+    <main className="mx-auto w-full max-w-3xl" data-testid="holding-page">
+      <div className="mb-4">
+        <Button
+          variant="ghost"
+          size="sm"
+          data-testid="back-to-savings"
+          onClick={() => navigate('/savings')}
+        >
+          ← Holdings
+        </Button>
+      </div>
+      <AssetDetail
+        assetId={assetId}
+        valued={valued}
+        onEdit={(asset) => {
+          setEditingAsset(asset)
+          setAssetOpen(true)
+        }}
+        onDelete={(asset) => {
+          deleteAsset.mutate(asset.id, {
+            onSuccess: () => navigate('/savings')
+          })
+        }}
+      />
       <AssetFormDialog open={assetOpen} onOpenChange={setAssetOpen} asset={editingAsset} />
     </main>
   )
 }
 
-function Shell({
-  children,
-  tab,
-  onTabChange
-}: {
-  children: ReactNode
-  tab: Tab
-  onTabChange: (tab: Tab) => void
-}): JSX.Element {
+function Shell({ children, tab }: { children: ReactNode; tab: Tab }): JSX.Element {
+  const navigate = useNavigate()
+  const location = useLocation()
   const [compact, setCompact] = useState(false)
   const sentinelRef = useRef<HTMLDivElement>(null)
   const copy = TAB_COPY[tab]
-  const { data: dbInfo } = useDatabaseInfo()
+  const onHoldingPage = location.pathname.startsWith('/savings/') && location.pathname !== '/savings'
+  const installmentsHeading =
+    location.pathname === '/installments/expenses'
+      ? 'Expenses'
+      : location.pathname === '/installments/income'
+        ? 'Income'
+        : location.pathname === '/installments/loans'
+          ? 'Loans'
+          : copy.title
+  const monthQuery = location.search.includes('month=') ? location.search : ''
 
   useEffect(() => {
     const sentinel = sentinelRef.current
@@ -203,13 +229,13 @@ function Shell({
   }, [])
 
   return (
-    <div className="mx-auto flex min-h-screen max-w-6xl flex-col px-4 md:px-8">
+    <div className="mx-auto flex min-h-screen w-full min-w-0 max-w-6xl flex-col px-4 md:px-8">
       <div ref={sentinelRef} className="h-6 md:h-10" aria-hidden />
       <header
         data-testid="app-sticky-header"
         data-compact={compact ? 'true' : 'false'}
         className={cn(
-          'sticky top-0 z-30 -mx-4 px-4 md:-mx-8 md:px-8',
+          'sticky top-0 z-30 w-full min-w-0',
           'transition-[padding,background-color,box-shadow,border-color] duration-300 ease-out',
           compact
             ? 'border-b border-line/70 bg-paper/85 py-3 shadow-[0_8px_24px_-18px_rgba(20,32,26,0.45)] backdrop-blur-md'
@@ -231,18 +257,16 @@ function Shell({
           className={cn(
             'font-display font-semibold tracking-tight text-ink',
             'transition-[font-size,margin,transform] duration-300 ease-out',
-            compact
-              ? 'mt-0 text-2xl md:text-[1.65rem]'
-              : 'mt-1 text-3xl md:text-4xl'
+            compact ? 'mt-0 text-2xl md:text-[1.65rem]' : 'mt-1 text-3xl md:text-4xl'
           )}
         >
-          {copy.title}
+          {onHoldingPage ? 'Holding' : installmentsHeading}
         </h1>
         <p
           className={cn(
             'max-w-xl overflow-hidden text-sm text-ink-muted md:text-base',
             'transition-[opacity,max-height,margin,transform] duration-300 ease-out',
-            compact
+            compact || onHoldingPage || location.pathname !== '/installments' && tab === 'installments'
               ? 'pointer-events-none mt-0 max-h-0 -translate-y-1 opacity-0'
               : 'mt-2 max-h-16 translate-y-0 opacity-100'
           )}
@@ -260,32 +284,20 @@ function Shell({
           <TabButton
             id="tab-savings"
             active={tab === 'savings'}
-            onClick={() => onTabChange('savings')}
+            onClick={() => navigate('/savings')}
           >
             Savings
           </TabButton>
           <TabButton
             id="tab-installments"
             active={tab === 'installments'}
-            onClick={() => onTabChange('installments')}
+            onClick={() => navigate(`/installments${monthQuery}`)}
           >
             Installments
           </TabButton>
         </nav>
-        <p
-          className="mt-2 truncate font-mono text-[11px] leading-4 text-ink-muted"
-          data-testid="sqlite-path"
-          title={dbInfo?.dbPath}
-        >
-          SQLite: {dbInfo?.dbPath ?? 'opening local database…'}
-        </p>
-        {dbInfo && dbInfo.legacyDbPaths.length > 0 && (
-          <p className="mt-1 text-[11px] leading-4 text-accent" data-testid="legacy-sqlite-paths">
-            Not opened (remove with npm run db:reset): {dbInfo.legacyDbPaths.join(' · ')}
-          </p>
-        )}
       </header>
-      <div className="flex flex-col gap-6 py-6">{children}</div>
+      <div className="flex w-full min-w-0 flex-col gap-6 py-6">{children}</div>
     </div>
   )
 }

@@ -3,6 +3,7 @@ import type { Asset, AssetClass } from '@shared/types'
 import type { UpsertAssetParsed } from '@shared/ipc'
 import { getDb, getAssetById } from './index'
 import { markCatalogAssetDismissed } from './ensureRealData'
+import { syncAssetFromLots } from './lots'
 
 export function upsertAsset(input: UpsertAssetParsed): Asset {
   const id = input.id ?? randomUUID()
@@ -76,7 +77,8 @@ export function upsertAsset(input: UpsertAssetParsed): Asset {
     }
   }
 
-  getDb()
+  const database = getDb()
+  database
     .prepare(
       `INSERT INTO assets (
         id, class, name, notes,
@@ -109,6 +111,7 @@ export function upsertAsset(input: UpsertAssetParsed): Asset {
         updated_at = excluded.updated_at`
     )
     .run(row)
+  syncAssetFromLots(database, id)
 
   const asset = getAssetById(id)
   if (!asset) throw new Error('Failed to upsert asset')

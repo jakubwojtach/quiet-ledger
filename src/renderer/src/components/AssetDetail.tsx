@@ -1,8 +1,9 @@
 import type { JSX } from 'react'
 import { formatGainPercent, formatMinorUnits } from '@shared/money'
 import { catalogEstimateFor } from '@shared/valuationFormulas'
-import { ASSET_CLASS_LABELS, type Asset, type ValuedAsset } from '@shared/types'
+import { ASSET_CLASS_LABELS, supportsLots, type Asset, type ValuedAsset } from '@shared/types'
 import { useAsset } from '@renderer/hooks/useNetWorth'
+import { LotsSection } from '@renderer/components/LotsSection'
 import { Button } from '@renderer/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@renderer/components/ui/card'
 
@@ -11,37 +12,17 @@ interface AssetDetailProps {
   valued?: ValuedAsset | null
   onEdit?: (asset: Asset) => void
   onDelete?: (asset: Asset) => void
-  onAdd?: () => void
 }
 
 export function AssetDetail({
   assetId,
   valued,
   onEdit,
-  onDelete,
-  onAdd
+  onDelete
 }: AssetDetailProps): JSX.Element {
   const needsFetch = Boolean(assetId) && !valued
   const { data: fetched, isLoading, isError, error } = useAsset(needsFetch ? assetId : null)
   const data = valued ?? fetched ?? null
-
-  if (!assetId) {
-    return (
-      <Card className="h-full min-h-48" data-testid="asset-detail-empty">
-        <CardHeader>
-          <CardTitle>Asset detail</CardTitle>
-          <CardDescription>No holding selected.</CardDescription>
-        </CardHeader>
-        <CardContent>
-          {onAdd && (
-            <Button onClick={onAdd} data-testid="add-asset-empty">
-              Add holding
-            </Button>
-          )}
-        </CardContent>
-      </Card>
-    )
-  }
 
   if (!data && isLoading) {
     return (
@@ -75,7 +56,7 @@ export function AssetDetail({
             {ASSET_CLASS_LABELS[asset.class]}
             {asset.account ? ` · ${asset.account}` : ''}
           </CardDescription>
-          <CardTitle className="font-display text-2xl">{asset.name}</CardTitle>
+          <CardTitle className="font-display text-2xl md:text-3xl">{asset.name}</CardTitle>
         </div>
         <div className="flex gap-2">
           {onEdit && (
@@ -96,8 +77,8 @@ export function AssetDetail({
           )}
         </div>
       </CardHeader>
-      <CardContent className="space-y-4">
-        <div className="grid grid-cols-2 gap-3">
+      <CardContent className="space-y-6">
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
           <Stat label="Native value" value={formatMinorUnits(data.nativeValueMinor, data.nativeCurrency)} />
           <Stat label="PLN value" value={formatMinorUnits(data.plnValueMinor, 'PLN')} />
           <Stat
@@ -120,7 +101,7 @@ export function AssetDetail({
           />
         </div>
 
-        <dl className="space-y-2 border-t border-line pt-4 text-sm">
+        <dl className="space-y-2 text-sm">
           {asset.class === 'etf' && (
             <>
               <Row label="Yahoo symbol" value={asset.ticker} />
@@ -189,6 +170,9 @@ export function AssetDetail({
             </>
           )}
         </dl>
+        {supportsLots(asset.class) && (
+          <LotsSection asset={asset} priceCurrency={data.nativeCurrency} />
+        )}
       </CardContent>
     </Card>
   )

@@ -3,7 +3,8 @@ import type {
   CreateExpenseRequest,
   CreateIncomeRequest,
   UpsertAssetRequest,
-  UpsertLiabilityRequest
+  UpsertLiabilityRequest,
+  UpsertLotRequest
 } from '@shared/ipc'
 import type { ExpenseEntry, IncomeEntry } from '@shared/types'
 
@@ -14,12 +15,15 @@ export const queryKeys = {
   income: ['income'] as const,
   liabilities: ['liabilities'] as const,
   expenseCategories: ['expenseCategories'] as const,
-  monthSummary: (month: string) => ['monthSummary', month] as const
+  monthSummary: (month: string) => ['monthSummary', month] as const,
+  lots: (assetId: string) => ['lots', assetId] as const
 }
 
 function invalidateMoney(qc: ReturnType<typeof useQueryClient>, month?: string): void {
   void qc.invalidateQueries({ queryKey: queryKeys.dashboard })
   void qc.invalidateQueries({ queryKey: queryKeys.assets })
+  void qc.invalidateQueries({ queryKey: ['asset'] })
+  void qc.invalidateQueries({ queryKey: ['lots'] })
   void qc.invalidateQueries({ queryKey: queryKeys.liabilities })
   void qc.invalidateQueries({ queryKey: queryKeys.income })
   if (month) void qc.invalidateQueries({ queryKey: queryKeys.monthSummary(month) })
@@ -197,6 +201,30 @@ export function useUpsertLiability() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: (input: UpsertLiabilityRequest) => window.api.upsertLiability(input),
+    onSuccess: () => invalidateMoney(qc)
+  })
+}
+
+export function useLots(assetId: string | null) {
+  return useQuery({
+    queryKey: queryKeys.lots(assetId ?? ''),
+    queryFn: () => window.api.listLots({ assetId: assetId! }),
+    enabled: Boolean(assetId)
+  })
+}
+
+export function useUpsertLot() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (input: UpsertLotRequest) => window.api.upsertLot(input),
+    onSuccess: () => invalidateMoney(qc)
+  })
+}
+
+export function useDeleteLot() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (id: string) => window.api.deleteLot({ id }),
     onSuccess: () => invalidateMoney(qc)
   })
 }

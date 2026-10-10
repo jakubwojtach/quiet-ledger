@@ -28,6 +28,7 @@ interface AssetFormDialogProps {
 export function AssetFormDialog({ open, onOpenChange, asset }: AssetFormDialogProps): JSX.Element {
   const upsert = useUpsertAsset()
   const editing = Boolean(asset)
+  const totalsFromLots = (asset?.lotCount ?? 0) > 0
   const catalogEstimate =
     asset &&
     (asset.class === 'apartment' || asset.class === 'land' || asset.class === 'car') &&
@@ -276,6 +277,11 @@ export function AssetFormDialog({ open, onOpenChange, asset }: AssetFormDialogPr
             onChange={setAccount}
           />
 
+          {totalsFromLots && (
+            <p className="text-xs text-ink-muted">
+              Quantity and paid add up from {asset?.lotCount} purchases. Change them under Purchases.
+            </p>
+          )}
           {cls === 'etf' && (
             <>
               <Field
@@ -285,16 +291,40 @@ export function AssetFormDialog({ open, onOpenChange, asset }: AssetFormDialogPr
                 onChange={setTicker}
               />
               <div className="grid grid-cols-2 gap-3">
-                <Field label="Quantity" id="qty" value={quantity} onChange={setQuantity} />
-                <Field label="Cost basis" id="cost" value={costBasis} onChange={setCostBasis} />
+                <Field
+                  label="Quantity"
+                  id="qty"
+                  value={quantity}
+                  onChange={setQuantity}
+                  disabled={totalsFromLots}
+                />
+                <Field
+                  label="Cost basis"
+                  id="cost"
+                  value={costBasis}
+                  onChange={setCostBasis}
+                  disabled={totalsFromLots}
+                />
               </div>
-              <Field label="Cost currency" id="cost-ccy" value={costCurrency} onChange={setCostCurrency} />
+              <Field
+                label="Cost currency"
+                id="cost-ccy"
+                value={costCurrency}
+                onChange={setCostCurrency}
+                disabled={totalsFromLots}
+              />
             </>
           )}
           {cls === 'bond' && (
             <>
               <div className="grid grid-cols-2 gap-3">
-                <Field label="Nominal" id="nominal" value={nominal} onChange={setNominal} />
+                <Field
+                  label="Nominal"
+                  id="nominal"
+                  value={nominal}
+                  onChange={setNominal}
+                  disabled={totalsFromLots}
+                />
                 <Field
                   label="Unit value (/100)"
                   id="unit-val"
@@ -325,7 +355,13 @@ export function AssetFormDialog({ open, onOpenChange, asset }: AssetFormDialogPr
           {cls === 'retirement' && (
             <>
               <div className="grid grid-cols-2 gap-3">
-                <Field label="Units" id="units" value={units} onChange={setUnits} />
+                <Field
+                  label="Units"
+                  id="units"
+                  value={units}
+                  onChange={setUnits}
+                  disabled={totalsFromLots}
+                />
                 <Field
                   label="Unit price (fallback)"
                   id="uprice"
@@ -340,7 +376,13 @@ export function AssetFormDialog({ open, onOpenChange, asset }: AssetFormDialogPr
                   value={fundCode}
                   onChange={setFundCode}
                 />
-                <Field label="Paid (optional)" id="ret-paid" value={paid} onChange={setPaid} />
+                <Field
+                  label="Paid (optional)"
+                  id="ret-paid"
+                  value={paid}
+                  onChange={setPaid}
+                  disabled={totalsFromLots}
+                />
               </div>
               <Field label="Currency" id="ret-ccy" value={currency} onChange={setCurrency} />
             </>
@@ -401,17 +443,24 @@ function Field({
   label,
   id,
   value,
-  onChange
+  onChange,
+  disabled
 }: {
   label: string
   id: string
   value: string
   onChange: (v: string) => void
+  disabled?: boolean
 }): JSX.Element {
   return (
     <div className="space-y-1.5">
       <Label htmlFor={id}>{label}</Label>
-      <Input id={id} value={value} onChange={(e) => onChange(e.target.value)} />
+      <Input
+        id={id}
+        value={value}
+        disabled={disabled}
+        onChange={(e) => onChange(e.target.value)}
+      />
     </div>
   )
 }

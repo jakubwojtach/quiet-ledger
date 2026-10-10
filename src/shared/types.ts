@@ -31,8 +31,48 @@ export interface AssetBase {
   notes: string | null
   /** Wrapper or institution, e.g. IKE, IKZE Kaja, Broker USD */
   account: string | null
+  /** Purchases recorded for this holding; when > 0 its totals come from them. */
+  lotCount: number
   createdAt: string
   updatedAt: string
+}
+
+/** Classes whose totals can be built from individual purchases. */
+export const LOT_CLASSES = ['etf', 'bond', 'retirement'] as const satisfies readonly AssetClass[]
+export type LotClass = (typeof LOT_CLASSES)[number]
+
+export function supportsLots(cls: AssetClass): cls is LotClass {
+  return (LOT_CLASSES as readonly AssetClass[]).includes(cls)
+}
+
+/** One purchase of an ETF, bond series or fund units. */
+export interface AssetLot {
+  id: string
+  assetId: string
+  /** YYYY-MM-DD */
+  date: string
+  /** Units ×1e6; for bonds the number of bonds ×1e6 */
+  quantityScaled: number
+  /** Price per unit ×1e4 in priceCurrency */
+  priceScaled: number | null
+  priceCurrency: CurrencyCode | null
+  paidMinor: MinorUnits
+  paidCurrency: CurrencyCode
+  /** Bond code, e.g. EDO0335 */
+  series: string | null
+  estimated: boolean
+  note: string | null
+  createdAt: string
+}
+
+export interface ValuedLot {
+  lot: AssetLot
+  plnValueMinor: MinorUnits
+  paidPlnMinor: MinorUnits
+  gainPlnMinor: MinorUnits | null
+  gainPercent: number | null
+  /** Bond lots: value is this lot's share of the statement value, not its own accrual. */
+  valueIsShare: boolean
 }
 
 /** ETF: ticker, quantity (scaled ×1e6), cost basis in original currency minor units */
@@ -227,3 +267,5 @@ export interface MonthSummary {
 }
 
 export const QUANTITY_SCALE = 1_000_000
+/** Lot unit prices are stored ×1e4. */
+export const LOT_PRICE_SCALE = 10_000

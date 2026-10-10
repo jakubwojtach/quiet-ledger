@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { ASSET_CLASSES, QUANTITY_SCALE } from './types'
+import { ASSET_CLASSES, LOT_PRICE_SCALE, QUANTITY_SCALE } from './types'
 import { majorToMinor } from './money'
 
 /** Typed IPC channel names */
@@ -20,7 +20,10 @@ export const IpcChannels = {
   getMonthSummary: 'networth:getMonthSummary',
   createExpense: 'networth:createExpense',
   deleteExpense: 'networth:deleteExpense',
-  getDatabaseInfo: 'networth:getDatabaseInfo'
+  getDatabaseInfo: 'networth:getDatabaseInfo',
+  listLots: 'networth:listLots',
+  upsertLot: 'networth:upsertLot',
+  deleteLot: 'networth:deleteLot'
 } as const
 
 export type IpcChannel = (typeof IpcChannels)[keyof typeof IpcChannels]
@@ -167,6 +170,32 @@ export const upsertLiabilityRequestSchema = z.object({
   notes: z.string().nullable().optional()
 })
 
+export const listLotsRequestSchema = z.object({
+  assetId: z.string().uuid()
+})
+
+export const upsertLotRequestSchema = z.object({
+  id: z.string().uuid().optional(),
+  assetId: z.string().uuid(),
+  date: dateSchema,
+  /** Units, or number of bonds */
+  quantity: quantityToScaled,
+  /** Price per unit in major units of priceCurrency */
+  price: z
+    .number()
+    .finite()
+    .positive()
+    .nullable()
+    .optional()
+    .transform((n) => (n == null ? null : Math.round(n * LOT_PRICE_SCALE))),
+  priceCurrency: currencySchema.nullable().optional(),
+  paid: moneyMajorToMinor,
+  paidCurrency: currencySchema,
+  series: z.string().trim().max(20).nullable().optional(),
+  estimated: z.boolean().default(false),
+  note: z.string().nullable().optional()
+})
+
 export const emptyRequestSchema = z.object({}).strict().optional()
 
 export const assetClassSchema = z.enum(ASSET_CLASSES)
@@ -189,7 +218,10 @@ export const IpcRequestSchemas = {
   [IpcChannels.getMonthSummary]: getMonthSummaryRequestSchema,
   [IpcChannels.createExpense]: createExpenseRequestSchema,
   [IpcChannels.deleteExpense]: idRequestSchema,
-  [IpcChannels.getDatabaseInfo]: emptyRequestSchema
+  [IpcChannels.getDatabaseInfo]: emptyRequestSchema,
+  [IpcChannels.listLots]: listLotsRequestSchema,
+  [IpcChannels.upsertLot]: upsertLotRequestSchema,
+  [IpcChannels.deleteLot]: idRequestSchema
 } as const
 
 export type GetAssetRequest = z.infer<typeof getAssetRequestSchema>
@@ -204,3 +236,6 @@ export type UpsertAssetParsed = z.output<typeof upsertAssetRequestSchema>
 export type UpsertLiabilityParsed = z.output<typeof upsertLiabilityRequestSchema>
 export type CreateIncomeParsed = z.output<typeof createIncomeRequestSchema>
 export type CreateExpenseParsed = z.output<typeof createExpenseRequestSchema>
+export type ListLotsRequest = z.infer<typeof listLotsRequestSchema>
+export type UpsertLotRequest = z.input<typeof upsertLotRequestSchema>
+export type UpsertLotParsed = z.output<typeof upsertLotRequestSchema>
