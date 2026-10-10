@@ -1,10 +1,26 @@
-import { useState, type JSX } from 'react'
+import { useEffect, useState, type JSX } from 'react'
 import { Dashboard } from '@renderer/components/Dashboard'
 import { AssetDetail } from '@renderer/components/AssetDetail'
 import { IncomeLog } from '@renderer/components/IncomeLog'
+import { useDashboard } from '@renderer/hooks/useNetWorth'
 
 export default function App(): JSX.Element {
+  const { data: dashboard } = useDashboard()
   const [selectedAssetId, setSelectedAssetId] = useState<string | null>(null)
+
+  // Auto-select the largest holding once data arrives so detail is never empty.
+  useEffect(() => {
+    if (!dashboard?.assets.length) return
+    setSelectedAssetId((current) => {
+      if (current && dashboard.assets.some((a) => a.asset.id === current)) {
+        return current
+      }
+      return dashboard.assets[0].asset.id
+    })
+  }, [dashboard])
+
+  const selected =
+    dashboard?.assets.find((a) => a.asset.id === selectedAssetId) ?? null
 
   return (
     <div className="mx-auto flex min-h-screen max-w-6xl flex-col gap-6 px-4 py-6 md:px-8 md:py-10">
@@ -20,15 +36,15 @@ export default function App(): JSX.Element {
         </p>
       </header>
 
-      <main className="grid gap-4 lg:grid-cols-[1.2fr_0.8fr]">
+      <main className="grid items-start gap-4 lg:grid-cols-[1.2fr_0.8fr]">
         <section className="animate-[fadeUp_0.55s_ease-out]">
           <Dashboard
             selectedAssetId={selectedAssetId}
             onSelectAsset={setSelectedAssetId}
           />
         </section>
-        <aside className="flex flex-col gap-4 animate-[fadeUp_0.65s_ease-out]">
-          <AssetDetail assetId={selectedAssetId} />
+        <aside className="flex flex-col gap-4 lg:sticky lg:top-4 animate-[fadeUp_0.65s_ease-out]">
+          <AssetDetail assetId={selectedAssetId} valued={selected} />
           <IncomeLog />
         </aside>
       </main>

@@ -1,19 +1,24 @@
 import type { JSX } from 'react'
 import { formatMinorUnits } from '@shared/money'
-import { ASSET_CLASS_LABELS } from '@shared/types'
+import { ASSET_CLASS_LABELS, type ValuedAsset } from '@shared/types'
 import { useAsset } from '@renderer/hooks/useNetWorth'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@renderer/components/ui/card'
 
 interface AssetDetailProps {
   assetId: string | null
+  /** Preferred: valued row already on the dashboard snapshot (no extra IPC). */
+  valued?: ValuedAsset | null
 }
 
-export function AssetDetail({ assetId }: AssetDetailProps): JSX.Element {
-  const { data, isLoading, isError, error } = useAsset(assetId)
+export function AssetDetail({ assetId, valued }: AssetDetailProps): JSX.Element {
+  // Fall back to IPC when parent has no snapshot row (e.g. deep-link later).
+  const needsFetch = Boolean(assetId) && !valued
+  const { data: fetched, isLoading, isError, error } = useAsset(needsFetch ? assetId : null)
+  const data = valued ?? fetched ?? null
 
   if (!assetId) {
     return (
-      <Card className="h-full min-h-48">
+      <Card className="h-full min-h-48" data-testid="asset-detail-empty">
         <CardHeader>
           <CardTitle>Asset detail</CardTitle>
           <CardDescription>Choose a holding from the dashboard list.</CardDescription>
@@ -22,9 +27,9 @@ export function AssetDetail({ assetId }: AssetDetailProps): JSX.Element {
     )
   }
 
-  if (isLoading) {
+  if (!data && isLoading) {
     return (
-      <Card className="animate-pulse">
+      <Card className="animate-pulse" data-testid="asset-detail-loading">
         <CardHeader>
           <CardTitle>Loading…</CardTitle>
         </CardHeader>
@@ -33,9 +38,9 @@ export function AssetDetail({ assetId }: AssetDetailProps): JSX.Element {
     )
   }
 
-  if (isError || !data) {
+  if (!data || isError) {
     return (
-      <Card>
+      <Card data-testid="asset-detail-error">
         <CardHeader>
           <CardTitle>Asset unavailable</CardTitle>
           <CardDescription>{(error as Error)?.message ?? 'Not found'}</CardDescription>
@@ -47,7 +52,7 @@ export function AssetDetail({ assetId }: AssetDetailProps): JSX.Element {
   const { asset } = data
 
   return (
-    <Card>
+    <Card data-testid="asset-detail">
       <CardHeader>
         <CardDescription>{ASSET_CLASS_LABELS[asset.class]}</CardDescription>
         <CardTitle className="font-display text-2xl">{asset.name}</CardTitle>
