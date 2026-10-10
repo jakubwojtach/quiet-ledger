@@ -1,33 +1,106 @@
-import { useEffect, useState, type JSX } from 'react'
+import { useEffect, useState, type JSX, type ReactNode } from 'react'
 import { Dashboard } from '@renderer/components/Dashboard'
+import { HoldingsList } from '@renderer/components/HoldingsList'
 import { AssetDetail } from '@renderer/components/AssetDetail'
 import { IncomeLog } from '@renderer/components/IncomeLog'
 import { useDashboard } from '@renderer/hooks/useNetWorth'
+import { Button } from '@renderer/components/ui/button'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@renderer/components/ui/card'
 
 export default function App(): JSX.Element {
-  const { data: dashboard } = useDashboard()
+  const { data: dashboard, isLoading, isError, error, refetch, isFetching } = useDashboard()
   const [selectedAssetId, setSelectedAssetId] = useState<string | null>(null)
 
-  // Auto-select the largest holding once data arrives so detail is never empty.
+  // Only auto-select when nothing is selected yet — never fight user clicks.
   useEffect(() => {
-    if (!dashboard?.assets.length) return
-    setSelectedAssetId((current) => {
-      if (current && dashboard.assets.some((a) => a.asset.id === current)) {
-        return current
-      }
-      return dashboard.assets[0].asset.id
-    })
-  }, [dashboard])
+    if (selectedAssetId != null) return
+    const first = dashboard?.assets[0]?.asset.id
+    if (first) setSelectedAssetId(first)
+  }, [dashboard, selectedAssetId])
+
+  if (isLoading) {
+    return (
+      <Shell>
+        <Card className="animate-pulse">
+          <CardHeader>
+            <CardTitle>Net worth</CardTitle>
+            <CardDescription>Loading holdings…</CardDescription>
+          </CardHeader>
+          <CardContent className="h-40" />
+        </Card>
+      </Shell>
+    )
+  }
+
+  if (isError || !dashboard) {
+    return (
+      <Shell>
+        <Card>
+          <CardHeader>
+            <CardTitle>Could not load dashboard</CardTitle>
+            <CardDescription>{(error as Error)?.message ?? 'Unknown error'}</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Button onClick={() => void refetch()}>Retry</Button>
+          </CardContent>
+        </Card>
+      </Shell>
+    )
+  }
 
   const selected =
-    dashboard?.assets.find((a) => a.asset.id === selectedAssetId) ?? null
+    dashboard.assets.find((a) => a.asset.id === selectedAssetId) ?? null
 
   return (
+    <Shell>
+      <main className="grid items-start gap-4 lg:grid-cols-[1.15fr_0.85fr]">
+        <section className="min-w-0">
+          <Dashboard data={dashboard} isFetching={isFetching} />
+        </section>
+
+        <aside className="flex min-w-0 flex-col gap-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>Holdings</CardTitle>
+              <CardDescription>Select an asset for native and PLN detail</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <label className="mb-3 block text-xs font-medium text-ink-muted" htmlFor="holding-select">
+                Jump to holding
+              </label>
+              <select
+                id="holding-select"
+                className="mb-3 flex h-10 w-full rounded-md border border-line bg-white px-3 text-sm"
+                value={selectedAssetId ?? ''}
+                onChange={(e) => setSelectedAssetId(e.target.value)}
+              >
+                {dashboard.assets.map((v) => (
+                  <option key={v.asset.id} value={v.asset.id}>
+                    {v.asset.name}
+                  </option>
+                ))}
+              </select>
+              <HoldingsList
+                assets={dashboard.assets}
+                selectedAssetId={selectedAssetId}
+                onSelectAsset={setSelectedAssetId}
+              />
+            </CardContent>
+          </Card>
+
+          <AssetDetail assetId={selectedAssetId} valued={selected} />
+          <IncomeLog />
+        </aside>
+      </main>
+    </Shell>
+  )
+}
+
+function Shell({ children }: { children: ReactNode }): JSX.Element {
+  return (
     <div className="mx-auto flex min-h-screen max-w-6xl flex-col gap-6 px-4 py-6 md:px-8 md:py-10">
-      <header className="animate-[fadeUp_0.5s_ease-out]">
-        <p className="text-xs font-semibold uppercase tracking-[0.2em] text-forest-soft">
-          Savings
-        </p>
+      <header>
+        <p className="text-xs font-semibold uppercase tracking-[0.2em] text-forest-soft">Savings</p>
         <h1 className="mt-1 font-display text-3xl font-semibold tracking-tight text-ink md:text-4xl">
           Net worth
         </h1>
@@ -35,26 +108,7 @@ export default function App(): JSX.Element {
           Personal holdings in PLN — prices and FX cached locally with a 15-minute TTL.
         </p>
       </header>
-
-      <main className="grid items-start gap-4 lg:grid-cols-[1.2fr_0.8fr]">
-        <section className="animate-[fadeUp_0.55s_ease-out]">
-          <Dashboard
-            selectedAssetId={selectedAssetId}
-            onSelectAsset={setSelectedAssetId}
-          />
-        </section>
-        <aside className="flex flex-col gap-4 lg:sticky lg:top-4 animate-[fadeUp_0.65s_ease-out]">
-          <AssetDetail assetId={selectedAssetId} valued={selected} />
-          <IncomeLog />
-        </aside>
-      </main>
-
-      <style>{`
-        @keyframes fadeUp {
-          from { opacity: 0; transform: translateY(8px); }
-          to { opacity: 1; transform: translateY(0); }
-        }
-      `}</style>
+      {children}
     </div>
   )
 }
