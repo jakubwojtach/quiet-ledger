@@ -23,7 +23,8 @@ function todayInMonth(month: string): string {
   return `${month}-01`
 }
 
-export function ThisMonth(): JSX.Element {
+/** Installments tab: pożyczki / e-raty + monthly income & spend cashflow. */
+export function Installments(): JSX.Element {
   const [month, setMonth] = useState(currentMonth)
   const { data, isLoading, isError, error, refetch } = useMonthSummary(month)
   const { data: categories } = useExpenseCategories()
@@ -44,6 +45,11 @@ export function ThisMonth(): JSX.Element {
     if (categoryId) return categoryId
     return categories?.[0]?.id ?? ''
   }, [categoryId, categories])
+
+  const totalPrincipalPln = useMemo(
+    () => (data?.liabilities ?? []).reduce((sum, v) => sum + v.principalPlnMinor, 0),
+    [data]
+  )
 
   async function onAddExpense(e: FormEvent): Promise<void> {
     e.preventDefault()
@@ -98,7 +104,7 @@ export function ThisMonth(): JSX.Element {
     return (
       <Card className="animate-pulse">
         <CardHeader>
-          <CardTitle>This month</CardTitle>
+          <CardTitle>Installments</CardTitle>
           <CardDescription>Loading…</CardDescription>
         </CardHeader>
         <CardContent className="h-40" />
@@ -110,7 +116,7 @@ export function ThisMonth(): JSX.Element {
     return (
       <Card>
         <CardHeader>
-          <CardTitle>Could not load month</CardTitle>
+          <CardTitle>Could not load installments</CardTitle>
           <CardDescription>{(error as Error)?.message ?? 'Unknown error'}</CardDescription>
         </CardHeader>
         <CardContent>
@@ -121,11 +127,52 @@ export function ThisMonth(): JSX.Element {
   }
 
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex flex-col gap-4" data-testid="installments-view">
+      <Card>
+        <CardHeader>
+          <CardDescription>Pożyczki & e-raty · remaining principal</CardDescription>
+          <CardTitle className="font-display text-3xl text-forest md:text-4xl">
+            {formatMinorUnits(totalPrincipalPln, 'PLN')}
+          </CardTitle>
+          <p className="text-xs text-ink-muted">
+            Monthly installment burden:{' '}
+            <span className="font-medium text-ink">
+              {formatMinorUnits(data.installmentsPlnMinor, 'PLN')}
+            </span>
+          </p>
+        </CardHeader>
+        <CardContent className="space-y-2">
+          {data.liabilities.length === 0 ? (
+            <p className="text-sm text-ink-muted">No loans or installments yet.</p>
+          ) : (
+            data.liabilities.map((v) => (
+              <div
+                key={v.liability.id}
+                className="flex items-center justify-between rounded-lg bg-paper-deep/60 px-3 py-2.5 text-sm"
+              >
+                <div>
+                  <div className="font-medium">{v.liability.name}</div>
+                  <div className="text-xs text-ink-muted">
+                    {v.liability.provider ?? 'Loan'}
+                    {v.liability.nextDueDate ? ` · due ${v.liability.nextDueDate}` : ''}
+                    {' · '}
+                    {formatMinorUnits(v.monthlyPaymentPlnMinor, 'PLN')}/mo
+                  </div>
+                </div>
+                <div className="text-right tabular-nums">
+                  <div className="font-medium">{formatMinorUnits(v.principalPlnMinor, 'PLN')}</div>
+                  <div className="text-xs text-ink-muted">principal</div>
+                </div>
+              </div>
+            ))
+          )}
+        </CardContent>
+      </Card>
+
       <Card>
         <CardHeader className="flex flex-row flex-wrap items-end justify-between gap-3">
           <div>
-            <CardDescription>Cashflow sketch · PLN</CardDescription>
+            <CardDescription>Monthly cashflow · PLN</CardDescription>
             <CardTitle
               className={`mt-1 font-display text-3xl md:text-4xl ${
                 data.cashflowPlnMinor >= 0 ? 'text-forest' : 'text-accent'
@@ -157,61 +204,35 @@ export function ThisMonth(): JSX.Element {
           <Stat
             label="Installments"
             value={formatMinorUnits(data.installmentsPlnMinor, 'PLN')}
-            hint="Scheduled monthly payments"
+            hint="Scheduled this month"
           />
         </CardContent>
       </Card>
 
-      <div className="grid gap-4 lg:grid-cols-2">
-        <Card>
-          <CardHeader>
-            <CardTitle>Spend by category</CardTitle>
-            <CardDescription>Share of this month’s expenses</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            {data.expensesByCategory.length === 0 ? (
-              <p className="text-sm text-ink-muted">No expenses logged yet.</p>
-            ) : (
-              data.expensesByCategory.map((row) => (
-                <div key={row.categoryId} className="space-y-1.5">
-                  <div className="flex items-baseline justify-between gap-3 text-sm">
-                    <span className="font-medium">{row.categoryName}</span>
-                    <span className="tabular-nums text-ink-muted">
-                      {row.percentOfTotal.toFixed(1)}% ·{' '}
-                      {formatMinorUnits(row.amountPlnMinor, 'PLN')}
-                    </span>
-                  </div>
-                  <Progress value={Math.min(100, row.percentOfTotal)} />
-                </div>
-              ))
-            )}
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Installments this month</CardTitle>
-            <CardDescription>From liability schedules</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-2">
-            {data.liabilities.length === 0 ? (
-              <p className="text-sm text-ink-muted">No liabilities.</p>
-            ) : (
-              data.liabilities.map((v) => (
-                <div
-                  key={v.liability.id}
-                  className="flex justify-between rounded-lg bg-paper-deep/60 px-3 py-2 text-sm"
-                >
-                  <span>{v.liability.name}</span>
-                  <span className="tabular-nums font-medium">
-                    {formatMinorUnits(v.monthlyPaymentPlnMinor, 'PLN')}
+      <Card>
+        <CardHeader>
+          <CardTitle>Spend by category</CardTitle>
+          <CardDescription>Share of this month’s expenses</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          {data.expensesByCategory.length === 0 ? (
+            <p className="text-sm text-ink-muted">No expenses logged yet.</p>
+          ) : (
+            data.expensesByCategory.map((row) => (
+              <div key={row.categoryId} className="space-y-1.5">
+                <div className="flex items-baseline justify-between gap-3 text-sm">
+                  <span className="font-medium">{row.categoryName}</span>
+                  <span className="tabular-nums text-ink-muted">
+                    {row.percentOfTotal.toFixed(1)}% ·{' '}
+                    {formatMinorUnits(row.amountPlnMinor, 'PLN')}
                   </span>
                 </div>
-              ))
-            )}
-          </CardContent>
-        </Card>
-      </div>
+                <Progress value={Math.min(100, row.percentOfTotal)} />
+              </div>
+            ))
+          )}
+        </CardContent>
+      </Card>
 
       <div className="grid gap-4 lg:grid-cols-2">
         <Card>
@@ -256,7 +277,7 @@ export function ThisMonth(): JSX.Element {
                 </select>
               </div>
               <div className="space-y-1.5">
-                <Label htmlFor="exp-liability">Link to liability (optional)</Label>
+                <Label htmlFor="exp-liability">Link to installment (optional)</Label>
                 <select
                   id="exp-liability"
                   className="flex h-10 w-full rounded-md border border-line bg-white px-3 text-sm"

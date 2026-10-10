@@ -1,6 +1,6 @@
-# Net Worth (Savings)
+# Savings
 
-Personal net worth tracker as an **Electron** desktop app. Base currency is **PLN**; all money values are stored as **integers in minor units** (grosze / cents).
+Personal savings & installments tracker as an **Electron** desktop app. Base currency is **PLN**; all money values are stored as **integers in minor units** (grosze / cents).
 
 ## Stack
 
@@ -41,8 +41,8 @@ SQLite data lives under the Electron `userData` directory (`networth.sqlite`). F
 
 ### UI tabs
 
-1. **Net worth** — assets, liabilities (principal + monthly payment), net = assets − liabilities, holdings detail
-2. **This month** — income, expenses by category, installment cashflow sketch (income − expenses − scheduled installments)
+1. **Savings** — total assets/savings in PLN, class breakdown, holdings detail (optional “after debts” line)
+2. **Installments** — pożyczki / e-raty (principal, monthly payment, due) plus monthly income, expenses, and installment cashflow
 
 ## Key paths
 
@@ -54,18 +54,16 @@ SQLite data lives under the Electron `userData` directory (`networth.sqlite`). F
 | Expenses | `src/main/db/expenses.ts` |
 | Shared types | `src/shared/types.ts` |
 | IPC channels + Zod | `src/shared/ipc.ts` |
-| Valuation (net of debt) | `src/main/services/valuation.ts` |
+| Valuation | `src/main/services/valuation.ts` |
 | Month summary | `src/main/services/monthSummary.ts` |
 | Local events hook (future HA) | `src/main/hooks/localEvents.ts` |
 | Preload API | `src/preload/index.ts` |
-| Net worth UI | `src/renderer/src/components/Dashboard.tsx` |
-| This month UI | `src/renderer/src/components/ThisMonth.tsx` |
+| Savings UI | `src/renderer/src/components/Dashboard.tsx` |
+| Installments UI | `src/renderer/src/components/Installments.tsx` |
 
 ## Features
 
-- Dashboard: net worth in PLN, assets / liabilities / net, % breakdown by asset class
-- Liabilities: remaining principal, monthly payment, optional next due
-- Per-asset detail: native value, PLN value, last updated
-- This month: expense categories + entries, income log, cashflow sketch
+- **Savings**: total savings in PLN, % breakdown by asset class, per-holding detail
+- **Installments**: loan/e-raty principals & payments, expense categories + entries, income log, cashflow sketch (income − expenses − installments)
 - Optimistic TanStack Query mutations with invalidate-on-success
 - Thin `emitLocalEvent` hook for a future Home Assistant / MCP integration (no HA built yet)

@@ -2,25 +2,25 @@ import { useEffect, useState, type JSX, type ReactNode } from 'react'
 import { Dashboard } from '@renderer/components/Dashboard'
 import { HoldingsList } from '@renderer/components/HoldingsList'
 import { AssetDetail } from '@renderer/components/AssetDetail'
-import { ThisMonth } from '@renderer/components/ThisMonth'
+import { Installments } from '@renderer/components/Installments'
 import { useDashboard } from '@renderer/hooks/useNetWorth'
 import { Button } from '@renderer/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@renderer/components/ui/card'
 import { cn } from '@renderer/lib/utils'
 
-type Tab = 'networth' | 'month'
+type Tab = 'savings' | 'installments'
 
 export default function App(): JSX.Element {
-  const [tab, setTab] = useState<Tab>('networth')
+  const [tab, setTab] = useState<Tab>('savings')
 
   return (
     <Shell tab={tab} onTabChange={setTab}>
-      {tab === 'networth' ? <NetWorthTab /> : <ThisMonth />}
+      {tab === 'savings' ? <SavingsTab /> : <Installments />}
     </Shell>
   )
 }
 
-function NetWorthTab(): JSX.Element {
+function SavingsTab(): JSX.Element {
   const { data: dashboard, isLoading, isError, error, refetch, isFetching } = useDashboard()
   const [selectedAssetId, setSelectedAssetId] = useState<string | null>(null)
 
@@ -34,7 +34,7 @@ function NetWorthTab(): JSX.Element {
     return (
       <Card className="animate-pulse">
         <CardHeader>
-          <CardTitle>Net worth</CardTitle>
+          <CardTitle>Savings</CardTitle>
           <CardDescription>Loading holdings…</CardDescription>
         </CardHeader>
         <CardContent className="h-40" />
@@ -46,7 +46,7 @@ function NetWorthTab(): JSX.Element {
     return (
       <Card>
         <CardHeader>
-          <CardTitle>Could not load dashboard</CardTitle>
+          <CardTitle>Could not load savings</CardTitle>
           <CardDescription>{(error as Error)?.message ?? 'Unknown error'}</CardDescription>
         </CardHeader>
         <CardContent>
@@ -59,7 +59,7 @@ function NetWorthTab(): JSX.Element {
   const selected = dashboard.assets.find((a) => a.asset.id === selectedAssetId) ?? null
 
   return (
-    <main className="grid items-start gap-4 lg:grid-cols-[1.15fr_0.85fr]">
+    <main className="grid items-start gap-4 lg:grid-cols-[1.15fr_0.85fr]" data-testid="savings-view">
       <section className="min-w-0">
         <Dashboard data={dashboard} isFetching={isFetching} />
       </section>
@@ -114,19 +114,27 @@ function Shell({
       <header>
         <p className="text-xs font-semibold uppercase tracking-[0.2em] text-forest-soft">Savings</p>
         <h1 className="mt-1 font-display text-3xl font-semibold tracking-tight text-ink md:text-4xl">
-          {tab === 'networth' ? 'Net worth' : 'This month'}
+          {tab === 'savings' ? 'Savings' : 'Installments'}
         </h1>
         <p className="mt-2 max-w-xl text-sm text-ink-muted md:text-base">
-          {tab === 'networth'
-            ? 'Assets minus liabilities in PLN — prices and FX cached locally with a 15-minute TTL.'
-            : 'Income, spending, and installment cashflow for the selected month.'}
+          {tab === 'savings'
+            ? 'Your holdings in PLN — prices and FX cached locally with a 15-minute TTL.'
+            : 'Loans, e-raty, spending, and income — money going out and debt in one place.'}
         </p>
-        <nav className="mt-4 flex gap-2" aria-label="Primary">
-          <TabButton active={tab === 'networth'} onClick={() => onTabChange('networth')}>
-            Net worth
+        <nav className="mt-4 flex gap-2" aria-label="Primary" role="tablist">
+          <TabButton
+            id="tab-savings"
+            active={tab === 'savings'}
+            onClick={() => onTabChange('savings')}
+          >
+            Savings
           </TabButton>
-          <TabButton active={tab === 'month'} onClick={() => onTabChange('month')}>
-            This month
+          <TabButton
+            id="tab-installments"
+            active={tab === 'installments'}
+            onClick={() => onTabChange('installments')}
+          >
+            Installments
           </TabButton>
         </nav>
       </header>
@@ -136,20 +144,26 @@ function Shell({
 }
 
 function TabButton({
+  id,
   active,
   onClick,
   children
 }: {
+  id: string
   active: boolean
   onClick: () => void
   children: ReactNode
 }): JSX.Element {
   return (
     <button
+      id={id}
       type="button"
+      role="tab"
+      aria-selected={active}
+      data-testid={id}
       onClick={onClick}
       className={cn(
-        'rounded-md px-4 py-2 text-sm font-medium transition-colors',
+        'min-h-10 cursor-pointer rounded-md px-5 py-2.5 text-sm font-medium transition-colors',
         active ? 'bg-forest text-white' : 'bg-paper-deep text-ink hover:bg-line'
       )}
     >
