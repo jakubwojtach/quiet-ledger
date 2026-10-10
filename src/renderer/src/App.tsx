@@ -8,6 +8,7 @@ import {
   useNavigate,
   useParams
 } from 'react-router-dom'
+import { motion, useReducedMotion } from 'framer-motion'
 import { ClassBreakdownCard, TotalSavingsCard } from '@renderer/components/Dashboard'
 import { HoldingsList } from '@renderer/components/HoldingsList'
 import { AssetDetail } from '@renderer/components/AssetDetail'
@@ -19,6 +20,7 @@ import {
   InstallmentsOverviewPage
 } from '@renderer/components/Installments'
 import { AssetFormDialog } from '@renderer/components/forms/AssetFormDialog'
+import { FadeUp, PageTransition } from '@renderer/components/motion/PageTransition'
 import { useDashboard, useDeleteAsset } from '@renderer/hooks/useNetWorth'
 import type { Asset } from '@shared/types'
 import { Button } from '@renderer/components/ui/button'
@@ -122,32 +124,34 @@ function SavingsListPage(): JSX.Element {
         </section>
 
         <aside className="min-h-0 min-w-0 lg:h-0 lg:min-h-full">
-          <Card className="flex h-full min-h-0 flex-col overflow-hidden">
-            <CardHeader className="flex shrink-0 flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-start sm:justify-between">
-              <div>
-                <CardTitle>Holdings</CardTitle>
-                <CardDescription>Open a holding for purchases and detail</CardDescription>
-              </div>
-              <Button data-testid="add-asset-btn" onClick={() => setAssetOpen(true)}>
-                Add holding
-              </Button>
-            </CardHeader>
-            <CardContent className="min-h-0 flex-1 overflow-y-auto">
-              {dashboard.assets.length === 0 ? (
-                <div className="rounded-lg border border-dashed border-line px-4 py-8 text-center">
-                  <p className="text-sm text-ink-muted">No holdings yet — add your first asset.</p>
-                  <Button className="mt-3" variant="outline" onClick={() => setAssetOpen(true)}>
-                    Add holding
-                  </Button>
+          <FadeUp delay={0.1} className="h-full">
+            <Card className="flex h-full min-h-0 flex-col overflow-hidden">
+              <CardHeader className="flex shrink-0 flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-start sm:justify-between">
+                <div>
+                  <CardTitle>Holdings</CardTitle>
+                  <CardDescription>Open a holding for purchases and detail</CardDescription>
                 </div>
-              ) : (
-                <HoldingsList
-                  assets={dashboard.assets}
-                  onOpenAsset={(id) => navigate(`/savings/${id}`)}
-                />
-              )}
-            </CardContent>
-          </Card>
+                <Button data-testid="add-asset-btn" onClick={() => setAssetOpen(true)}>
+                  Add holding
+                </Button>
+              </CardHeader>
+              <CardContent className="min-h-0 flex-1 overflow-y-auto">
+                {dashboard.assets.length === 0 ? (
+                  <div className="rounded-lg border border-dashed border-line px-4 py-8 text-center">
+                    <p className="text-sm text-ink-muted">No holdings yet — add your first asset.</p>
+                    <Button className="mt-3" variant="outline" onClick={() => setAssetOpen(true)}>
+                      Add holding
+                    </Button>
+                  </div>
+                ) : (
+                  <HoldingsList
+                    assets={dashboard.assets}
+                    onOpenAsset={(id) => navigate(`/savings/${id}`)}
+                  />
+                )}
+              </CardContent>
+            </Card>
+          </FadeUp>
         </aside>
       </div>
 
@@ -229,75 +233,94 @@ function Shell({ children, tab }: { children: ReactNode; tab: Tab }): JSX.Elemen
   }, [])
 
   return (
-    <div className="mx-auto flex min-h-screen w-full min-w-0 max-w-6xl flex-col px-4 md:px-8">
+    <div className="flex min-h-screen w-full min-w-0 flex-col">
       <div ref={sentinelRef} className="h-6 md:h-10" aria-hidden />
+      {/* Full-bleed sticky bar so scrolled content never peeks at the sides. */}
       <header
         data-testid="app-sticky-header"
         data-compact={compact ? 'true' : 'false'}
         className={cn(
           'sticky top-0 z-30 w-full min-w-0',
-          'transition-[padding,background-color,box-shadow,border-color] duration-300 ease-out',
+          'transition-[background-color,box-shadow,border-color] duration-300 ease-out',
           compact
-            ? 'border-b border-line/70 bg-paper/85 py-3 shadow-[0_8px_24px_-18px_rgba(20,32,26,0.45)] backdrop-blur-md'
-            : 'border-b border-transparent bg-transparent pb-0 pt-0'
+            ? 'border-b border-line bg-paper shadow-[0_1px_0_rgba(20,32,26,0.06),0_12px_28px_-18px_rgba(15,46,34,0.35)]'
+            : 'border-b border-transparent bg-transparent'
         )}
       >
-        <p
+        <div
           className={cn(
-            'overflow-hidden text-xs font-semibold uppercase tracking-[0.2em] text-forest-soft',
-            'transition-[opacity,max-height,transform,margin] duration-300 ease-out',
-            compact
-              ? 'pointer-events-none mb-0 max-h-0 -translate-y-1 opacity-0'
-              : 'mb-0 max-h-6 translate-y-0 opacity-100'
+            'mx-auto w-full min-w-0 max-w-6xl px-4 md:px-8',
+            'transition-[padding] duration-300 ease-out',
+            compact ? 'py-3.5' : 'pb-0 pt-0'
           )}
         >
-          {copy.eyebrow}
-        </p>
-        <h1
-          className={cn(
-            'font-display font-semibold tracking-tight text-ink',
-            'transition-[font-size,margin,transform] duration-300 ease-out',
-            compact ? 'mt-0 text-2xl md:text-[1.65rem]' : 'mt-1 text-3xl md:text-4xl'
-          )}
-        >
-          {onHoldingPage ? 'Holding' : installmentsHeading}
-        </h1>
-        <p
-          className={cn(
-            'max-w-xl overflow-hidden text-sm text-ink-muted md:text-base',
-            'transition-[opacity,max-height,margin,transform] duration-300 ease-out',
-            compact || onHoldingPage || location.pathname !== '/installments' && tab === 'installments'
-              ? 'pointer-events-none mt-0 max-h-0 -translate-y-1 opacity-0'
-              : 'mt-2 max-h-16 translate-y-0 opacity-100'
-          )}
-        >
-          {copy.subtitle}
-        </p>
-        <nav
-          className={cn(
-            'flex gap-2 transition-[margin] duration-300 ease-out',
-            compact ? 'mt-2.5' : 'mt-4'
-          )}
-          aria-label="Primary"
-          role="tablist"
-        >
-          <TabButton
-            id="tab-savings"
-            active={tab === 'savings'}
-            onClick={() => navigate('/savings')}
+          <p
+            className={cn(
+              'overflow-hidden text-xs font-semibold uppercase tracking-[0.2em] text-forest-soft',
+              'transition-[opacity,max-height,transform,margin] duration-300 ease-out',
+              compact
+                ? 'pointer-events-none mb-0 max-h-0 -translate-y-1 opacity-0'
+                : 'mb-0 max-h-6 translate-y-0 opacity-100'
+            )}
           >
-            Savings
-          </TabButton>
-          <TabButton
-            id="tab-installments"
-            active={tab === 'installments'}
-            onClick={() => navigate(`/installments${monthQuery}`)}
+            {copy.eyebrow}
+          </p>
+          <h1
+            className={cn(
+              'font-display font-semibold tracking-tight text-ink',
+              'transition-[font-size,margin] duration-300 ease-out',
+              compact ? 'mt-0 text-xl md:text-2xl' : 'mt-1 text-3xl md:text-4xl'
+            )}
           >
-            Installments
-          </TabButton>
-        </nav>
+            {onHoldingPage ? 'Holding' : installmentsHeading}
+          </h1>
+          <p
+            className={cn(
+              'max-w-xl overflow-hidden text-sm text-ink-muted md:text-base',
+              'transition-[opacity,max-height,margin,transform] duration-300 ease-out',
+              compact ||
+                onHoldingPage ||
+                (location.pathname !== '/installments' && tab === 'installments')
+                ? 'pointer-events-none mt-0 max-h-0 -translate-y-1 opacity-0'
+                : 'mt-2 max-h-16 translate-y-0 opacity-100'
+            )}
+          >
+            {copy.subtitle}
+          </p>
+          <nav
+            className={cn(
+              'flex gap-2 transition-[margin] duration-300 ease-out',
+              compact ? 'mt-2.5' : 'mt-4'
+            )}
+            aria-label="Primary"
+            role="tablist"
+          >
+            <TabButton
+              id="tab-savings"
+              active={tab === 'savings'}
+              onClick={() => navigate('/savings')}
+            >
+              Savings
+            </TabButton>
+            <TabButton
+              id="tab-installments"
+              active={tab === 'installments'}
+              onClick={() => navigate(`/installments${monthQuery}`)}
+            >
+              Installments
+            </TabButton>
+          </nav>
+        </div>
       </header>
-      <div className="flex w-full min-w-0 flex-col gap-6 py-6">{children}</div>
+      <div className="mx-auto flex w-full min-w-0 max-w-6xl flex-col gap-6 px-4 py-6 md:px-8">
+        <PageTransition
+          routeKey={
+            location.pathname.startsWith('/installments') ? 'installments' : location.pathname
+          }
+        >
+          {children}
+        </PageTransition>
+      </div>
     </div>
   )
 }
@@ -313,6 +336,7 @@ function TabButton({
   onClick: () => void
   children: ReactNode
 }): JSX.Element {
+  const reduce = useReducedMotion()
   return (
     <button
       id={id}
@@ -322,11 +346,18 @@ function TabButton({
       data-testid={id}
       onClick={onClick}
       className={cn(
-        'min-h-10 cursor-pointer rounded-md px-5 py-2.5 text-sm font-medium transition-colors',
-        active ? 'bg-forest text-white' : 'bg-paper-deep text-ink hover:bg-line'
+        'relative min-h-10 cursor-pointer rounded-md px-5 py-2.5 text-sm font-medium transition-colors',
+        active ? 'text-white' : 'bg-paper-deep/80 text-ink hover:bg-line'
       )}
     >
-      {children}
+      {active && (
+        <motion.span
+          layoutId={reduce ? undefined : 'primary-tab'}
+          className="absolute inset-0 rounded-md bg-forest shadow-[0_8px_20px_-12px_rgba(31,77,56,0.9)]"
+          transition={{ type: 'spring', stiffness: 380, damping: 32 }}
+        />
+      )}
+      <span className="relative z-10">{children}</span>
     </button>
   )
 }

@@ -23,7 +23,9 @@ export const IpcChannels = {
   getDatabaseInfo: 'networth:getDatabaseInfo',
   listLots: 'networth:listLots',
   upsertLot: 'networth:upsertLot',
-  deleteLot: 'networth:deleteLot'
+  deleteLot: 'networth:deleteLot',
+  getNetWorthHistory: 'networth:getNetWorthHistory',
+  getCashflowHistory: 'networth:getCashflowHistory'
 } as const
 
 export type IpcChannel = (typeof IpcChannels)[keyof typeof IpcChannels]
@@ -221,7 +223,9 @@ export const IpcRequestSchemas = {
   [IpcChannels.getDatabaseInfo]: emptyRequestSchema,
   [IpcChannels.listLots]: listLotsRequestSchema,
   [IpcChannels.upsertLot]: upsertLotRequestSchema,
-  [IpcChannels.deleteLot]: idRequestSchema
+  [IpcChannels.deleteLot]: idRequestSchema,
+  [IpcChannels.getNetWorthHistory]: emptyRequestSchema,
+  [IpcChannels.getCashflowHistory]: emptyRequestSchema
 } as const
 
 export type GetAssetRequest = z.infer<typeof getAssetRequestSchema>

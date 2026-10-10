@@ -113,11 +113,21 @@ CREATE TABLE IF NOT EXISTS app_meta (
   value TEXT NOT NULL
 );
 
+-- One row per calendar day; written when the dashboard is built.
+CREATE TABLE IF NOT EXISTS net_worth_snapshots (
+  day TEXT PRIMARY KEY NOT NULL,
+  assets_minor INTEGER NOT NULL,
+  liabilities_minor INTEGER NOT NULL,
+  net_worth_minor INTEGER NOT NULL,
+  recorded_at TEXT NOT NULL
+);
+
 CREATE INDEX IF NOT EXISTS idx_assets_class ON assets(class);
 CREATE INDEX IF NOT EXISTS idx_asset_lots_asset ON asset_lots(asset_id, date);
 CREATE INDEX IF NOT EXISTS idx_income_month ON income_entries(month);
 CREATE INDEX IF NOT EXISTS idx_expense_date ON expense_entries(date);
 CREATE INDEX IF NOT EXISTS idx_price_cache_fetched ON price_cache(fetched_at);
+CREATE INDEX IF NOT EXISTS idx_net_worth_snapshots_day ON net_worth_snapshots(day);
 `
 
 /**

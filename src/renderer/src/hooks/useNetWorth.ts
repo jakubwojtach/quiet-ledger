@@ -16,7 +16,9 @@ export const queryKeys = {
   liabilities: ['liabilities'] as const,
   expenseCategories: ['expenseCategories'] as const,
   monthSummary: (month: string) => ['monthSummary', month] as const,
-  lots: (assetId: string) => ['lots', assetId] as const
+  lots: (assetId: string) => ['lots', assetId] as const,
+  netWorthHistory: ['netWorthHistory'] as const,
+  cashflowHistory: ['cashflowHistory'] as const
 }
 
 function invalidateMoney(qc: ReturnType<typeof useQueryClient>, month?: string): void {
@@ -26,6 +28,8 @@ function invalidateMoney(qc: ReturnType<typeof useQueryClient>, month?: string):
   void qc.invalidateQueries({ queryKey: ['lots'] })
   void qc.invalidateQueries({ queryKey: queryKeys.liabilities })
   void qc.invalidateQueries({ queryKey: queryKeys.income })
+  void qc.invalidateQueries({ queryKey: queryKeys.netWorthHistory })
+  void qc.invalidateQueries({ queryKey: queryKeys.cashflowHistory })
   if (month) void qc.invalidateQueries({ queryKey: queryKeys.monthSummary(month) })
   else void qc.invalidateQueries({ queryKey: ['monthSummary'] })
 }
@@ -42,6 +46,22 @@ export function useDashboard() {
   return useQuery({
     queryKey: queryKeys.dashboard,
     queryFn: () => window.api.getDashboard()
+  })
+}
+
+export function useNetWorthHistory() {
+  return useQuery({
+    queryKey: queryKeys.netWorthHistory,
+    queryFn: () => window.api.getNetWorthHistory(),
+    staleTime: 60_000
+  })
+}
+
+export function useCashflowHistory() {
+  return useQuery({
+    queryKey: queryKeys.cashflowHistory,
+    queryFn: () => window.api.getCashflowHistory(),
+    staleTime: 60_000
   })
 }
 
@@ -103,6 +123,7 @@ export function useRefreshPrices() {
     onSuccess: (data) => {
       qc.setQueryData(queryKeys.dashboard, data)
       void qc.invalidateQueries({ queryKey: queryKeys.dashboard })
+      void qc.invalidateQueries({ queryKey: queryKeys.netWorthHistory })
     }
   })
 }

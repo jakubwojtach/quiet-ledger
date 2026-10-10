@@ -18,6 +18,7 @@ import {
   refreshAllPrices
 } from '../services/valuation'
 import { deleteLot, upsertLot } from '../db/lots'
+import { listCashflowHistory, listNetWorthHistory } from '../db/analytics'
 import { buildMonthSummary } from '../services/monthSummary'
 import {
   createIncomeEntry,
@@ -143,4 +144,8 @@ export function registerIpcHandlers(): void {
     const { id } = idRequestSchema.parse(raw)
     return deleteLot(id)
   })
+
+  ipcMain.handle(IpcChannels.getNetWorthHistory, async () => listNetWorthHistory(90))
+
+  ipcMain.handle(IpcChannels.getCashflowHistory, async () => listCashflowHistory(18))
 }

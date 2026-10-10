@@ -1,4 +1,5 @@
 import { listAssets, getAssetById, QUANTITY_SCALE } from '../db'
+import { recordNetWorthSnapshot } from '../db/analytics'
 import { listLiabilities } from '../db/liabilities'
 import { listLots } from '../db/lots'
 import { convertToPlnMinor } from './fx'
@@ -262,6 +263,12 @@ export async function buildDashboard(): Promise<DashboardSnapshot> {
     asOf: new Date().toISOString(),
     fxStale
   }
+
+  recordNetWorthSnapshot({
+    assetsMinor: totalAssetsPlnMinor,
+    liabilitiesMinor: totalLiabilitiesPlnMinor,
+    netWorthMinor: netWorthPlnMinor
+  })
 
   emitLocalEvent('dashboard.updated', {
     netWorthPlnMinor: snapshot.netWorthPlnMinor,

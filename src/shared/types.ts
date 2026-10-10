@@ -266,6 +266,23 @@ export interface MonthSummary {
   fxStale: boolean
 }
 
+/** One calendar-day net-worth point for sparklines. */
+export interface NetWorthHistoryPoint {
+  day: string
+  assetsPlnMinor: MinorUnits
+  liabilitiesPlnMinor: MinorUnits
+  netWorthPlnMinor: MinorUnits
+}
+
+/** Aggregated month for cashflow charts. */
+export interface CashflowMonthPoint {
+  month: string
+  incomePlnMinor: MinorUnits
+  expensesPlnMinor: MinorUnits
+  installmentsPlnMinor: MinorUnits
+  cashflowPlnMinor: MinorUnits
+}
+
 export const QUANTITY_SCALE = 1_000_000
 /** Lot unit prices are stored ×1e4. */
 export const LOT_PRICE_SCALE = 10_000

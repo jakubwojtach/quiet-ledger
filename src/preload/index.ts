@@ -16,12 +16,14 @@ import type { DatabaseInfo } from '../shared/dataDirs'
 import type {
   Asset,
   AssetLot,
+  CashflowMonthPoint,
   DashboardSnapshot,
   ExpenseCategory,
   ExpenseEntry,
   IncomeEntry,
   Liability,
   MonthSummary,
+  NetWorthHistoryPoint,
   ValuedAsset,
   ValuedLot
 } from '../shared/types'
@@ -88,7 +90,13 @@ const api = {
     invokeValidated(IpcChannels.upsertLot, request),
 
   deleteLot: (request: IdRequest): Promise<{ ok: true }> =>
-    invokeValidated(IpcChannels.deleteLot, request)
+    invokeValidated(IpcChannels.deleteLot, request),
+
+  getNetWorthHistory: (): Promise<NetWorthHistoryPoint[]> =>
+    invokeValidated(IpcChannels.getNetWorthHistory),
+
+  getCashflowHistory: (): Promise<CashflowMonthPoint[]> =>
+    invokeValidated(IpcChannels.getCashflowHistory)
 }
 
 export type NetWorthApi = typeof api

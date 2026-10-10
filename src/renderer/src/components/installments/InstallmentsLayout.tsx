@@ -1,6 +1,8 @@
 import type { JSX } from 'react'
-import { NavLink, Outlet } from 'react-router-dom'
+import { NavLink, Outlet, useLocation } from 'react-router-dom'
+import { motion, useReducedMotion } from 'framer-motion'
 import { useMonthParam, withMonth } from './useMonthParam'
+import { PageTransition } from '@renderer/components/motion/PageTransition'
 import { Input } from '@renderer/components/ui/input'
 import { Label } from '@renderer/components/ui/label'
 import { cn } from '@renderer/lib/utils'
@@ -15,6 +17,9 @@ const LINKS = [
 /** Shared chrome: month picker + sub-nav for Installments routes. */
 export function InstallmentsLayout(): JSX.Element {
   const [month, setMonth] = useMonthParam()
+  const location = useLocation()
+  const reduce = useReducedMotion()
+  const routeKey = `${location.pathname}${location.search}`
 
   return (
     <div className="flex w-full min-w-0 flex-col gap-4" data-testid="installments-view">
@@ -27,12 +32,23 @@ export function InstallmentsLayout(): JSX.Element {
               end={link.end}
               className={({ isActive }) =>
                 cn(
-                  'min-h-10 rounded-md px-4 py-2 text-sm font-medium transition-colors',
-                  isActive ? 'bg-forest text-white' : 'bg-paper-deep text-ink hover:bg-line'
+                  'relative min-h-10 rounded-md px-4 py-2 text-sm font-medium transition-colors',
+                  isActive ? 'text-white' : 'bg-paper-deep/80 text-ink hover:bg-line'
                 )
               }
             >
-              {link.label}
+              {({ isActive }) => (
+                <>
+                  {isActive && (
+                    <motion.span
+                      layoutId={reduce ? undefined : 'installments-tab'}
+                      className="absolute inset-0 rounded-md bg-forest"
+                      transition={{ type: 'spring', stiffness: 380, damping: 32 }}
+                    />
+                  )}
+                  <span className="relative z-10">{link.label}</span>
+                </>
+              )}
             </NavLink>
           ))}
         </nav>
@@ -47,7 +63,9 @@ export function InstallmentsLayout(): JSX.Element {
           />
         </div>
       </div>
-      <Outlet />
+      <PageTransition routeKey={routeKey}>
+        <Outlet />
+      </PageTransition>
     </div>
   )
 }
