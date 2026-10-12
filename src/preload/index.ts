@@ -8,6 +8,8 @@ import {
   type GetMonthSummaryRequest,
   type IdRequest,
   type ListLotsRequest,
+  type UpdateExpenseRequest,
+  type UpdateIncomeRequest,
   type UpsertAssetRequest,
   type UpsertLiabilityRequest,
   type UpsertLotRequest
@@ -56,6 +58,9 @@ const api = {
   createIncome: (request: CreateIncomeRequest): Promise<IncomeEntry> =>
     invokeValidated(IpcChannels.createIncome, request),
 
+  updateIncome: (request: UpdateIncomeRequest): Promise<IncomeEntry> =>
+    invokeValidated(IpcChannels.updateIncome, request),
+
   deleteIncome: (request: IdRequest): Promise<{ ok: true }> =>
     invokeValidated(IpcChannels.deleteIncome, request),
 
@@ -77,6 +82,9 @@ const api = {
 
   createExpense: (request: CreateExpenseRequest): Promise<ExpenseEntry> =>
     invokeValidated(IpcChannels.createExpense, request),
+
+  updateExpense: (request: UpdateExpenseRequest): Promise<ExpenseEntry> =>
+    invokeValidated(IpcChannels.updateExpense, request),
 
   deleteExpense: (request: IdRequest): Promise<{ ok: true }> =>
     invokeValidated(IpcChannels.deleteExpense, request),

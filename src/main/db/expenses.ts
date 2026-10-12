@@ -110,6 +110,80 @@ export function createExpenseEntry(input: {
   }
 }
 
+function getExpenseById(id: string): ExpenseEntry {
+  const row = getDb()
+    .prepare(
+      `SELECT e.id, e.category_id, c.name AS category_name, e.date, e.amount_minor,
+              e.currency, e.note, e.liability_id, e.created_at
+       FROM expense_entries e
+       JOIN expense_categories c ON c.id = e.category_id
+       WHERE e.id = ?`
+    )
+    .get(id) as
+    | {
+        id: string
+        category_id: string
+        category_name: string
+        date: string
+        amount_minor: number
+        currency: string
+        note: string | null
+        liability_id: string | null
+        created_at: string
+      }
+    | undefined
+
+  if (!row) throw new Error(`Expense not found: ${id}`)
+
+  return {
+    id: row.id,
+    categoryId: row.category_id,
+    categoryName: row.category_name,
+    date: row.date,
+    amountMinor: row.amount_minor,
+    currency: row.currency,
+    note: row.note,
+    liabilityId: row.liability_id,
+    createdAt: row.created_at
+  }
+}
+
+export function updateExpenseEntry(
+  id: string,
+  input: {
+    categoryId: string
+    date: string
+    amountMinor: number
+    currency: string
+    note?: string | null
+    liabilityId?: string | null
+  }
+): ExpenseEntry {
+  const result = getDb()
+    .prepare(
+      `UPDATE expense_entries SET
+        category_id = @categoryId,
+        date = @date,
+        amount_minor = @amountMinor,
+        currency = @currency,
+        note = @note,
+        liability_id = @liabilityId
+      WHERE id = @id`
+    )
+    .run({
+      id,
+      categoryId: input.categoryId,
+      date: input.date,
+      amountMinor: input.amountMinor,
+      currency: input.currency,
+      note: input.note ?? null,
+      liabilityId: input.liabilityId ?? null
+    })
+
+  if (result.changes === 0) throw new Error(`Expense not found: ${id}`)
+  return getExpenseById(id)
+}
+
 export function deleteExpenseEntry(id: string): { ok: true } {
   getDb().prepare('DELETE FROM expense_entries WHERE id = ?').run(id)
   return { ok: true }

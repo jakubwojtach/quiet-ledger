@@ -1,29 +1,36 @@
 import { useEffect, useState, type FormEvent, type JSX } from 'react'
-import { useCreateIncome } from '@renderer/hooks/useNetWorth'
+import { minorToMajor } from '@shared/money'
+import type { IncomeEntry } from '@shared/types'
+import { useCreateIncome, useUpdateIncome } from '@renderer/hooks/useNetWorth'
 import { Button } from '@renderer/components/ui/button'
 import { Input } from '@renderer/components/ui/input'
 import { Label } from '@renderer/components/ui/label'
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle
-} from '@renderer/components/ui/dialog'
+  Sheet,
+  SheetBody,
+  SheetContent,
+  SheetDescription,
+  SheetFooter,
+  SheetHeader,
+  SheetTitle
+} from '@renderer/components/ui/sheet'
 
 interface IncomeFormDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   month: string
+  income?: IncomeEntry | null
 }
 
 export function IncomeFormDialog({
   open,
   onOpenChange,
-  month
+  month,
+  income = null
 }: IncomeFormDialogProps): JSX.Element {
   const createIncome = useCreateIncome()
+  const updateIncome = useUpdateIncome(month)
+  const editing = Boolean(income)
   const [amount, setAmount] = useState('')
   const [note, setNote] = useState('')
   const [error, setError] = useState<string | null>(null)
@@ -31,9 +38,16 @@ export function IncomeFormDialog({
   useEffect(() => {
     if (!open) return
     setError(null)
+    if (income) {
+      setAmount(String(minorToMajor(income.amountMinor)))
+      setNote(income.note ?? '')
+      return
+    }
     setAmount('')
     setNote('')
-  }, [open])
+  }, [open, income])
+
+  const saving = createIncome.isPending || updateIncome.isPending
 
   async function onSubmit(e: FormEvent): Promise<void> {
     e.preventDefault()
@@ -44,13 +58,23 @@ export function IncomeFormDialog({
       return
     }
     try {
-      await createIncome.mutateAsync({
-        month,
-        amount: major,
-        currency: 'PLN',
-        note: note.trim() || null,
-        allocations: []
-      })
+      if (income) {
+        await updateIncome.mutateAsync({
+          id: income.id,
+          month: income.month,
+          amount: major,
+          currency: income.currency,
+          note: note.trim() || null
+        })
+      } else {
+        await createIncome.mutateAsync({
+          month,
+          amount: major,
+          currency: 'PLN',
+          note: note.trim() || null,
+          allocations: []
+        })
+      }
       onOpenChange(false)
     } catch (err) {
       setError((err as Error).message)
@@ -58,42 +82,46 @@ export function IncomeFormDialog({
   }
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent data-testid="income-form-dialog">
-        <DialogHeader>
-          <DialogTitle>Add income</DialogTitle>
-          <DialogDescription>Logged for {month}.</DialogDescription>
-        </DialogHeader>
-        <form className="grid gap-3" onSubmit={(e) => void onSubmit(e)}>
-          <div className="space-y-1.5">
-            <Label htmlFor="inc-amount">Amount (PLN)</Label>
-            <Input
-              id="inc-amount"
-              value={amount}
-              onChange={(e) => setAmount(e.target.value)}
-              autoFocus
-            />
-          </div>
-          <div className="space-y-1.5">
-            <Label htmlFor="inc-note">Note</Label>
-            <Input
-              id="inc-note"
-              value={note}
-              onChange={(e) => setNote(e.target.value)}
-              placeholder="Salary, bonus…"
-            />
-          </div>
-          {error && <p className="text-sm text-accent">{error}</p>}
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+    <Sheet open={open} onOpenChange={onOpenChange}>
+      <SheetContent data-testid="income-form-dialog">
+        <SheetHeader>
+          <SheetTitle>{editing ? 'Edit income' : 'Add income'}</SheetTitle>
+          <SheetDescription>
+            {editing ? 'Update this income line.' : `Logged for ${month}.`}
+          </SheetDescription>
+        </SheetHeader>
+        <form className="flex min-h-0 flex-1 flex-col" onSubmit={(e) => void onSubmit(e)}>
+          <SheetBody className="grid content-start gap-3.5">
+            <div className="space-y-1.5">
+              <Label htmlFor="inc-amount">Amount (PLN)</Label>
+              <Input
+                id="inc-amount"
+                value={amount}
+                onChange={(e) => setAmount(e.target.value)}
+                autoFocus
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="inc-note">Note</Label>
+              <Input
+                id="inc-note"
+                value={note}
+                onChange={(e) => setNote(e.target.value)}
+                placeholder="Salary, bonus…"
+              />
+            </div>
+            {error ? <p className="text-[13px] text-[var(--loss)]">{error}</p> : null}
+          </SheetBody>
+          <SheetFooter>
+            <Button type="button" variant="outline" size="sm" onClick={() => onOpenChange(false)}>
               Cancel
             </Button>
-            <Button type="submit" disabled={createIncome.isPending}>
-              {createIncome.isPending ? 'Saving…' : 'Add income'}
+            <Button type="submit" size="sm" disabled={saving}>
+              {saving ? 'Saving…' : editing ? 'Save' : 'Add income'}
             </Button>
-          </DialogFooter>
+          </SheetFooter>
         </form>
-      </DialogContent>
-    </Dialog>
+      </SheetContent>
+    </Sheet>
   )
 }

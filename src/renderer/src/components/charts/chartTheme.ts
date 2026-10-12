@@ -1,28 +1,85 @@
-/** Forest-ledger palette for charts — no neon / purple defaults. */
+/** Chart colors from CSS variables so light/dark stay in sync. */
+function cssVar(name: string, fallback: string): string {
+  if (typeof window === 'undefined') return fallback
+  const v = getComputedStyle(document.documentElement).getPropertyValue(name).trim()
+  return v || fallback
+}
+
+export function chartColors(): string[] {
+  return [
+    cssVar('--chart-1', '#1a3d30'),
+    cssVar('--chart-2', '#2a5c46'),
+    cssVar('--chart-3', '#6b8f78'),
+    cssVar('--chart-4', '#b8923a'),
+    cssVar('--chart-5', '#c45c26'),
+    cssVar('--chart-6', '#5a675f')
+  ]
+}
+
+export function chartGrid(): string {
+  return cssVar('--chart-grid', 'rgba(210, 204, 188, 0.7)')
+}
+
+export function chartAxis(): string {
+  return cssVar('--chart-axis', '#5a675f')
+}
+
+export function chartIncome(): string {
+  return cssVar('--accent', '#6DB0F4')
+}
+
+export function chartExpense(): string {
+  return cssVar('--cat-5', '#81878D')
+}
+
+export function chartNet(): string {
+  return cssVar('--accent', '#6DB0F4')
+}
+
+/** @deprecated use chartColors() */
 export const CHART_COLORS = [
-  '#1f4d38',
-  '#2f6b4f',
+  '#1a3d30',
+  '#2a5c46',
   '#6b8f78',
-  '#a8c4b0',
+  '#b8923a',
   '#c45c26',
-  '#b87333',
-  '#3d5248',
-  '#0f2e22'
+  '#5a675f'
 ] as const
 
-export const CHART_GRID = 'rgba(197, 209, 200, 0.55)'
-export const CHART_AXIS = '#3d5248'
-export const CHART_INCOME = '#2f6b4f'
+export const CHART_GRID = 'rgba(210, 204, 188, 0.7)'
+export const CHART_AXIS = '#5a675f'
+export const CHART_INCOME = '#2a5c46'
 export const CHART_EXPENSE = '#c45c26'
 export const CHART_LOAN = '#6b8f78'
-export const CHART_NET = '#1f4d38'
+export const CHART_NET = '#1a3d30'
 
-export function formatPlnCompact(minor: number): string {
-  const major = minor / 100
-  const abs = Math.abs(major)
-  const sign = major < 0 ? '−' : ''
-  if (abs >= 1_000_000) return `${sign}${(abs / 1_000_000).toFixed(1)}M`
-  if (abs >= 10_000) return `${sign}${Math.round(abs / 1000)}k`
-  if (abs >= 1000) return `${sign}${(abs / 1000).toFixed(1)}k`
-  return `${sign}${Math.round(abs)}`
+export function formatPlnCompact(minor: number, locale = 'pl-PL'): string {
+  return new Intl.NumberFormat(locale, {
+    notation: 'compact',
+    maximumFractionDigits: 2
+  }).format(minor / 100)
+}
+
+export function chartTokens(): {
+  accent: string
+  gain: string
+  loss: string
+  grid: string
+  axis: string
+  cat: string[]
+} {
+  return {
+    accent: cssVar('--accent', '#6DB0F4'),
+    gain: cssVar('--gain', '#62D286'),
+    loss: cssVar('--loss', '#F2716A'),
+    grid: cssVar('--line', 'rgba(255,255,255,0.08)'),
+    axis: cssVar('--ink-3', '#767B81'),
+    cat: [
+      cssVar('--cat-1', '#6DB0F4'),
+      cssVar('--cat-2', '#50BFBE'),
+      cssVar('--cat-3', '#B093E5'),
+      cssVar('--cat-4', '#EBB25F'),
+      cssVar('--cat-5', '#81878D')
+    ]
+  }
 }

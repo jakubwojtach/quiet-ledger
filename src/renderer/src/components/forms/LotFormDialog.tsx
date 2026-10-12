@@ -6,13 +6,14 @@ import { Button } from '@renderer/components/ui/button'
 import { Input } from '@renderer/components/ui/input'
 import { Label } from '@renderer/components/ui/label'
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle
-} from '@renderer/components/ui/dialog'
+  Sheet,
+  SheetBody,
+  SheetContent,
+  SheetDescription,
+  SheetFooter,
+  SheetHeader,
+  SheetTitle
+} from '@renderer/components/ui/sheet'
 
 /** Polish retail treasury bonds are issued at 100 zł each. */
 const BOND_UNIT_PRICE = 100
@@ -142,85 +143,88 @@ export function LotFormDialog({
   }
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent data-testid="lot-form-dialog">
-        <DialogHeader>
-          <DialogTitle>{lot ? 'Edit purchase' : 'Add purchase'}</DialogTitle>
-          <DialogDescription>
+    <Sheet open={open} onOpenChange={onOpenChange}>
+      <SheetContent data-testid="lot-form-dialog">
+        <SheetHeader>
+          <SheetTitle>{lot ? 'Edit purchase' : 'Add purchase'}</SheetTitle>
+          <SheetDescription>
             {asset.name}
             {asset.account ? ` · ${asset.account}` : ''}.{' '}
             {isBond
               ? 'Paid fills in from the number of bonds × 100 zł.'
               : 'Leave quantity or paid blank to work it out from the price, when both are in the same currency.'}
-          </DialogDescription>
-        </DialogHeader>
-        <form className="grid gap-3" onSubmit={(e) => void onSubmit(e)}>
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1.5">
-              <Label htmlFor="lot-date">Date</Label>
-              <Input
-                id="lot-date"
-                type="date"
-                value={date}
-                onChange={(e) => setDate(e.target.value)}
-                required
-              />
+          </SheetDescription>
+        </SheetHeader>
+        <form className="flex min-h-0 flex-1 flex-col" onSubmit={(e) => void onSubmit(e)}>
+          <SheetBody className="grid content-start gap-3.5">
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label htmlFor="lot-date">Date</Label>
+                <Input
+                  id="lot-date"
+                  type="date"
+                  value={date}
+                  onChange={(e) => setDate(e.target.value)}
+                  required
+                />
+              </div>
+              {isBond ? (
+                <Field label="Bond code (EDO0336)" id="lot-series" value={series} onChange={setSeries} />
+              ) : (
+                <Field label="Quantity" id="lot-qty" value={quantity} onChange={setQuantity} />
+              )}
             </div>
             {isBond ? (
-              <Field label="Bond code (EDO0336)" id="lot-series" value={series} onChange={setSeries} />
-            ) : (
-              <Field label="Quantity" id="lot-qty" value={quantity} onChange={setQuantity} />
-            )}
-          </div>
-          {isBond && (
-            <Field label="Number of bonds" id="lot-qty" value={quantity} onChange={setQuantity} />
-          )}
-          <div className="grid grid-cols-2 gap-3">
-            <Field
-              label={isBond ? 'Price per bond' : 'Price per unit'}
-              id="lot-price"
-              value={price}
-              onChange={setPrice}
-            />
-            <Field label="Price currency" id="lot-price-ccy" value={priceCcy} onChange={setPriceCcy} />
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <Field label="Paid (incl. fees)" id="lot-paid" value={paid} onChange={setPaid} />
-            <Field label="Paid currency" id="lot-paid-ccy" value={paidCcy} onChange={setPaidCcy} />
-          </div>
-          <Field label="Note" id="lot-note" value={note} onChange={setNote} />
-          <label className="flex items-center gap-2 text-sm">
-            <input
-              type="checkbox"
-              checked={estimated}
-              onChange={(e) => setEstimated(e.target.checked)}
-            />
-            Estimated (opening balance or worked-out units)
-          </label>
-
-          {error && <p className="text-sm text-accent">{error}</p>}
-
-          <DialogFooter className="gap-2">
-            {lot && (
+              <Field label="Number of bonds" id="lot-qty" value={quantity} onChange={setQuantity} />
+            ) : null}
+            <div className="grid grid-cols-2 gap-3">
+              <Field
+                label={isBond ? 'Price per bond' : 'Price per unit'}
+                id="lot-price"
+                value={price}
+                onChange={setPrice}
+              />
+              <Field label="Price currency" id="lot-price-ccy" value={priceCcy} onChange={setPriceCcy} />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <Field label="Paid (incl. fees)" id="lot-paid" value={paid} onChange={setPaid} />
+              <Field label="Paid currency" id="lot-paid-ccy" value={paidCcy} onChange={setPaidCcy} />
+            </div>
+            <Field label="Note" id="lot-note" value={note} onChange={setNote} />
+            <label className="flex items-center gap-2 text-[13px] text-[var(--ink-2)]">
+              <input
+                type="checkbox"
+                className="size-3.5 rounded border-[var(--line-strong)]"
+                checked={estimated}
+                onChange={(e) => setEstimated(e.target.checked)}
+              />
+              Estimated (opening balance or worked-out units)
+            </label>
+            {error ? <p className="text-[13px] text-[var(--loss)]">{error}</p> : null}
+          </SheetBody>
+          <SheetFooter>
+            {lot ? (
               <Button
                 type="button"
                 variant="ghost"
+                size="sm"
+                className="mr-auto text-[var(--loss)]"
                 onClick={() => void onDelete()}
                 disabled={remove.isPending}
               >
                 Delete
               </Button>
-            )}
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+            ) : null}
+            <Button type="button" variant="outline" size="sm" onClick={() => onOpenChange(false)}>
               Cancel
             </Button>
-            <Button type="submit" disabled={upsert.isPending}>
+            <Button type="submit" size="sm" disabled={upsert.isPending}>
               {upsert.isPending ? 'Saving…' : lot ? 'Save' : 'Add purchase'}
             </Button>
-          </DialogFooter>
+          </SheetFooter>
         </form>
-      </DialogContent>
-    </Dialog>
+      </SheetContent>
+    </Sheet>
   )
 }
 

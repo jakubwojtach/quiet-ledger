@@ -95,6 +95,7 @@ export function listCashflowHistory(limitMonths = 18): CashflowMonthPoint[] {
     .slice(-limitMonths)
     .map((month) => {
       const incomePlnMinor = incomeMap.get(month) ?? 0
+      const expensesMissing = !expenseMap.has(month)
       const expensesPlnMinor = expenseMap.get(month) ?? 0
       const installmentsPlnMinor = loanPayments
       return {
@@ -102,7 +103,8 @@ export function listCashflowHistory(limitMonths = 18): CashflowMonthPoint[] {
         incomePlnMinor,
         expensesPlnMinor,
         installmentsPlnMinor,
-        cashflowPlnMinor: incomePlnMinor - expensesPlnMinor - installmentsPlnMinor
+        cashflowPlnMinor: incomePlnMinor - expensesPlnMinor - installmentsPlnMinor,
+        expensesMissing
       }
     })
 }

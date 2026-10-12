@@ -2,6 +2,8 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import type {
   CreateExpenseRequest,
   CreateIncomeRequest,
+  UpdateExpenseRequest,
+  UpdateIncomeRequest,
   UpsertAssetRequest,
   UpsertLiabilityRequest,
   UpsertLotRequest
@@ -108,6 +110,17 @@ export function useCreateIncome() {
   })
 }
 
+export function useUpdateIncome(month: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (input: UpdateIncomeRequest) => window.api.updateIncome(input),
+    onSuccess: (_data, input) => {
+      invalidateMoney(qc, month)
+      if (input.month !== month) invalidateMoney(qc, input.month)
+    }
+  })
+}
+
 export function useDeleteIncome(month: string) {
   const qc = useQueryClient()
   return useMutation({
@@ -191,6 +204,18 @@ export function useCreateExpense(month: string) {
       if (ctx?.previous) qc.setQueryData(queryKeys.monthSummary(month), ctx.previous)
     },
     onSuccess: () => invalidateMoney(qc, month)
+  })
+}
+
+export function useUpdateExpense(month: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (input: UpdateExpenseRequest) => window.api.updateExpense(input),
+    onSuccess: (_data, input) => {
+      invalidateMoney(qc, month)
+      const nextMonth = input.date.slice(0, 7)
+      if (nextMonth !== month) invalidateMoney(qc, nextMonth)
+    }
   })
 }
 

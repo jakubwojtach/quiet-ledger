@@ -1,33 +1,28 @@
-import type { JSX } from 'react'
-import {
-  Area,
-  AreaChart,
-  ResponsiveContainer,
-  Tooltip,
-  YAxis
-} from 'recharts'
+import { useMemo, type JSX } from 'react'
+import { Area, AreaChart, ResponsiveContainer, Tooltip, YAxis } from 'recharts'
 import { formatMinorUnits } from '@shared/money'
 import type { NetWorthHistoryPoint } from '@shared/types'
-import { CHART_NET, formatPlnCompact } from './chartTheme'
+import { useLocale } from '@renderer/lib/i18n/locale'
+import { useTheme } from '@renderer/lib/theme'
+import { chartNet, formatPlnCompact } from './chartTheme'
 
 export function NetWorthSparkline({
   points
 }: {
   points: NetWorthHistoryPoint[]
 }): JSX.Element {
+  const { t, localeTag } = useLocale()
+  const { resolved } = useTheme()
+  const stroke = useMemo(() => chartNet(), [resolved])
+
   if (points.length === 0) {
-    return (
-      <p className="text-xs text-ink-muted">
-        Open Savings once more after a day or two — a daily snapshot powers this trend.
-      </p>
-    )
+    return <p className="text-xs text-ink-muted">{t('dashboard.sparklineHint')}</p>
   }
 
   const mapped = points.map((p) => ({
     day: p.day,
     value: p.netWorthPlnMinor
   }))
-  // Single day still draws a calm baseline until history accumulates.
   const data =
     mapped.length === 1
       ? [
@@ -42,28 +37,29 @@ export function NetWorthSparkline({
         <AreaChart data={data} margin={{ top: 4, right: 4, left: 0, bottom: 0 }}>
           <defs>
             <linearGradient id="nwFill" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor={CHART_NET} stopOpacity={0.35} />
-              <stop offset="100%" stopColor={CHART_NET} stopOpacity={0.02} />
+              <stop offset="0%" stopColor={stroke} stopOpacity={0.35} />
+              <stop offset="100%" stopColor={stroke} stopOpacity={0.02} />
             </linearGradient>
           </defs>
           <YAxis hide domain={['dataMin', 'dataMax']} />
           <Tooltip
             formatter={(value) => {
               const v = typeof value === 'number' ? value : Number(value)
-              return [formatMinorUnits(v, 'PLN'), 'Net worth']
+              return [formatMinorUnits(v, 'PLN', localeTag), t('chart.netWorth')]
             }}
             labelFormatter={(label) => String(label)}
             contentStyle={{
-              borderRadius: 10,
-              border: '1px solid rgba(197,209,200,0.9)',
-              background: 'rgba(255,255,255,0.95)',
+              borderRadius: 12,
+              border: '1px solid var(--line)',
+              background: 'var(--color-card)',
+              color: 'var(--ink)',
               fontSize: 12
             }}
           />
           <Area
             type="monotone"
             dataKey="value"
-            stroke={CHART_NET}
+            stroke={stroke}
             strokeWidth={2}
             fill="url(#nwFill)"
             animationDuration={800}

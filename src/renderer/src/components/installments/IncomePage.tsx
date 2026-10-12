@@ -1,9 +1,10 @@
 import { useState, type JSX } from 'react'
-import { Link } from 'react-router-dom'
-import { formatMinorUnits } from '@shared/money'
+import type { IncomeEntry } from '@shared/types'
 import { useDeleteIncome, useMonthSummary } from '@renderer/hooks/useNetWorth'
 import { IncomeFormDialog } from '@renderer/components/forms/IncomeFormDialog'
-import { useMonthParam, withMonth } from './useMonthParam'
+import { MoneyAmount } from '@renderer/components/shell/MoneyAmount'
+import { MASK, Sensitive } from '@renderer/lib/privacy'
+import { useMonthParam } from './useMonthParam'
 import { Button } from '@renderer/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@renderer/components/ui/card'
 
@@ -12,6 +13,7 @@ export function IncomePage(): JSX.Element {
   const { data, isLoading, isError, error, refetch } = useMonthSummary(month)
   const deleteIncome = useDeleteIncome(month)
   const [incomeOpen, setIncomeOpen] = useState(false)
+  const [editingIncome, setEditingIncome] = useState<IncomeEntry | null>(null)
 
   if (isLoading) {
     return (
@@ -42,18 +44,19 @@ export function IncomePage(): JSX.Element {
     <div className="flex flex-col gap-4" data-testid="installments-income">
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <Link
-            to={withMonth('/installments', month)}
-            className="text-sm text-ink-muted hover:text-ink"
-          >
-            ← Overview
-          </Link>
           <h2 className="font-display text-2xl font-semibold">Income · {month}</h2>
-          <p className="text-sm text-ink-muted">
-            {formatMinorUnits(data.incomePlnMinor, 'PLN')} total
+          <p className="flex items-center gap-1 text-sm text-ink-muted">
+            <MoneyAmount amountMinor={data.incomePlnMinor} className="!text-sm" /> total
           </p>
         </div>
-        <Button className="self-start" onClick={() => setIncomeOpen(true)} data-testid="add-income-btn">
+        <Button
+          className="self-start"
+          onClick={() => {
+            setEditingIncome(null)
+            setIncomeOpen(true)
+          }}
+          data-testid="add-income-btn"
+        >
           Add income
         </Button>
       </div>
@@ -72,15 +75,29 @@ export function IncomePage(): JSX.Element {
                 key={entry.id}
                 className="flex items-center justify-between gap-2 rounded-lg bg-paper-deep/60 px-3 py-2 text-sm"
               >
-                <span>{entry.note || 'Income'}</span>
+                <Sensitive placeholder={MASK.nameShort}>{entry.note || 'Income'}</Sensitive>
                 <div className="flex items-center gap-2">
-                  <span className="tabular-nums font-medium">
-                    {formatMinorUnits(entry.amountMinor, entry.currency)}
-                  </span>
+                  <MoneyAmount
+                    amountMinor={entry.amountMinor}
+                    currency={entry.currency}
+                    className="!text-sm font-medium"
+                  />
                   {!entry.id.startsWith('optimistic-') && (
-                    <Button variant="ghost" size="sm" onClick={() => deleteIncome.mutate(entry.id)}>
-                      Delete
-                    </Button>
+                    <>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => {
+                          setEditingIncome(entry)
+                          setIncomeOpen(true)
+                        }}
+                      >
+                        Edit
+                      </Button>
+                      <Button variant="ghost" size="sm" onClick={() => deleteIncome.mutate(entry.id)}>
+                        Delete
+                      </Button>
+                    </>
                   )}
                 </div>
               </div>
@@ -89,7 +106,15 @@ export function IncomePage(): JSX.Element {
         </CardContent>
       </Card>
 
-      <IncomeFormDialog open={incomeOpen} onOpenChange={setIncomeOpen} month={month} />
+      <IncomeFormDialog
+        open={incomeOpen}
+        onOpenChange={(open) => {
+          setIncomeOpen(open)
+          if (!open) setEditingIncome(null)
+        }}
+        month={month}
+        income={editingIncome}
+      />
     </div>
   )
 }

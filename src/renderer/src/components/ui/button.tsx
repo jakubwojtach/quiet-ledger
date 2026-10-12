@@ -3,28 +3,25 @@ import { Slot } from '@radix-ui/react-slot'
 import { cva, type VariantProps } from 'class-variance-authority'
 import { cn } from '@renderer/lib/utils'
 
-const buttonVariants = cva(
-  'inline-flex items-center justify-center gap-2 rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-forest disabled:pointer-events-none disabled:opacity-50',
-  {
-    variants: {
-      variant: {
-        default: 'bg-forest text-white hover:bg-forest-soft',
-        secondary: 'bg-paper-deep text-ink hover:bg-line',
-        outline: 'border border-line bg-transparent hover:bg-paper-deep',
-        ghost: 'hover:bg-paper-deep'
-      },
-      size: {
-        default: 'h-10 px-4 py-2',
-        sm: 'h-8 rounded-md px-3 text-xs',
-        lg: 'h-11 rounded-md px-6'
-      }
+const buttonVariants = cva('btn', {
+  variants: {
+    variant: {
+      default: 'btn-primary',
+      secondary: 'btn-secondary',
+      outline: 'btn-outline btn-primary',
+      ghost: 'btn-ghost'
     },
-    defaultVariants: {
-      variant: 'default',
-      size: 'default'
+    size: {
+      default: 'btn-md',
+      sm: 'btn-sm',
+      lg: 'btn-lg'
     }
+  },
+  defaultVariants: {
+    variant: 'default',
+    size: 'default'
   }
-)
+})
 
 export interface ButtonProps
   extends React.ButtonHTMLAttributes<HTMLButtonElement>,

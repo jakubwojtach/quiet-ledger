@@ -6,13 +6,14 @@ import { Button } from '@renderer/components/ui/button'
 import { Input } from '@renderer/components/ui/input'
 import { Label } from '@renderer/components/ui/label'
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle
-} from '@renderer/components/ui/dialog'
+  Sheet,
+  SheetBody,
+  SheetContent,
+  SheetDescription,
+  SheetFooter,
+  SheetHeader,
+  SheetTitle
+} from '@renderer/components/ui/sheet'
 
 interface LiabilityFormDialogProps {
   open: boolean
@@ -84,76 +85,78 @@ export function LiabilityFormDialog({
   }
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent data-testid="liability-form-dialog">
-        <DialogHeader>
-          <DialogTitle>{editing ? 'Edit installment' : 'Add installment'}</DialogTitle>
-          <DialogDescription>
+    <Sheet open={open} onOpenChange={onOpenChange}>
+      <SheetContent data-testid="liability-form-dialog">
+        <SheetHeader>
+          <SheetTitle>{editing ? 'Edit installment' : 'Add installment'}</SheetTitle>
+          <SheetDescription>
             Pożyczka / e-raty — principal and monthly payment in normal currency units.
-          </DialogDescription>
-        </DialogHeader>
-        <form className="grid gap-3" onSubmit={(e) => void onSubmit(e)}>
-          <div className="space-y-1.5">
-            <Label htmlFor="liab-name">Name</Label>
-            <Input id="liab-name" value={name} onChange={(e) => setName(e.target.value)} required />
-          </div>
-          <div className="space-y-1.5">
-            <Label htmlFor="liab-provider">Provider</Label>
-            <Input
-              id="liab-provider"
-              value={provider}
-              onChange={(e) => setProvider(e.target.value)}
-              placeholder="Bank, carrier…"
-            />
-          </div>
-          <div className="grid grid-cols-2 gap-3">
+          </SheetDescription>
+        </SheetHeader>
+        <form className="flex min-h-0 flex-1 flex-col" onSubmit={(e) => void onSubmit(e)}>
+          <SheetBody className="grid content-start gap-3.5">
             <div className="space-y-1.5">
-              <Label htmlFor="liab-principal">Remaining principal</Label>
+              <Label htmlFor="liab-name">Name</Label>
+              <Input id="liab-name" value={name} onChange={(e) => setName(e.target.value)} required />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="liab-provider">Provider</Label>
               <Input
-                id="liab-principal"
-                value={principal}
-                onChange={(e) => setPrincipal(e.target.value)}
+                id="liab-provider"
+                value={provider}
+                onChange={(e) => setProvider(e.target.value)}
+                placeholder="Bank, carrier…"
               />
             </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="liab-payment">Monthly payment</Label>
-              <Input
-                id="liab-payment"
-                value={monthlyPayment}
-                onChange={(e) => setMonthlyPayment(e.target.value)}
-              />
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label htmlFor="liab-principal">Remaining principal</Label>
+                <Input
+                  id="liab-principal"
+                  value={principal}
+                  onChange={(e) => setPrincipal(e.target.value)}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="liab-payment">Monthly payment</Label>
+                <Input
+                  id="liab-payment"
+                  value={monthlyPayment}
+                  onChange={(e) => setMonthlyPayment(e.target.value)}
+                />
+              </div>
             </div>
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1.5">
-              <Label htmlFor="liab-ccy">Currency</Label>
-              <Input id="liab-ccy" value={currency} onChange={(e) => setCurrency(e.target.value)} />
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label htmlFor="liab-ccy">Currency</Label>
+                <Input id="liab-ccy" value={currency} onChange={(e) => setCurrency(e.target.value)} />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="liab-due">Next due</Label>
+                <Input
+                  id="liab-due"
+                  type="date"
+                  value={nextDueDate}
+                  onChange={(e) => setNextDueDate(e.target.value)}
+                />
+              </div>
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="liab-due">Next due</Label>
-              <Input
-                id="liab-due"
-                type="date"
-                value={nextDueDate}
-                onChange={(e) => setNextDueDate(e.target.value)}
-              />
+              <Label htmlFor="liab-notes">Notes</Label>
+              <Input id="liab-notes" value={notes} onChange={(e) => setNotes(e.target.value)} />
             </div>
-          </div>
-          <div className="space-y-1.5">
-            <Label htmlFor="liab-notes">Notes</Label>
-            <Input id="liab-notes" value={notes} onChange={(e) => setNotes(e.target.value)} />
-          </div>
-          {error && <p className="text-sm text-accent">{error}</p>}
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+            {error ? <p className="text-[13px] text-[var(--loss)]">{error}</p> : null}
+          </SheetBody>
+          <SheetFooter>
+            <Button type="button" variant="outline" size="sm" onClick={() => onOpenChange(false)}>
               Cancel
             </Button>
-            <Button type="submit" disabled={upsert.isPending}>
+            <Button type="submit" size="sm" disabled={upsert.isPending}>
               {upsert.isPending ? 'Saving…' : editing ? 'Save changes' : 'Add installment'}
             </Button>
-          </DialogFooter>
+          </SheetFooter>
         </form>
-      </DialogContent>
-    </Dialog>
+      </SheetContent>
+    </Sheet>
   )
 }

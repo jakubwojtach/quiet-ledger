@@ -7,6 +7,8 @@ import {
   getMonthSummaryRequestSchema,
   idRequestSchema,
   listLotsRequestSchema,
+  updateExpenseRequestSchema,
+  updateIncomeRequestSchema,
   upsertAssetRequestSchema,
   upsertLiabilityRequestSchema,
   upsertLotRequestSchema
@@ -25,14 +27,16 @@ import {
   deleteIncomeEntry,
   getDatabaseInfo,
   listAssets,
-  listIncomeEntries
+  listIncomeEntries,
+  updateIncomeEntry
 } from '../db'
 import { upsertAsset, deleteAsset } from '../db/assets'
 import { listLiabilities, upsertLiability, deleteLiability } from '../db/liabilities'
 import {
   createExpenseEntry,
   deleteExpenseEntry,
-  listExpenseCategories
+  listExpenseCategories,
+  updateExpenseEntry
 } from '../db/expenses'
 import { emitLocalEvent } from '../hooks/localEvents'
 
@@ -71,6 +75,19 @@ export function registerIpcHandlers(): void {
       }))
     })
     emitLocalEvent('income.created', { id: entry.id, month: entry.month })
+    return entry
+  })
+
+  ipcMain.handle(IpcChannels.updateIncome, async (_event, raw: unknown) => {
+    const input = updateIncomeRequestSchema.parse(raw)
+    const entry = updateIncomeEntry({
+      id: input.id,
+      month: input.month,
+      amountMinor: input.amount,
+      currency: input.currency,
+      note: input.note
+    })
+    emitLocalEvent('income.updated', { id: entry.id, month: entry.month })
     return entry
   })
 
@@ -123,6 +140,20 @@ export function registerIpcHandlers(): void {
     return entry
   })
 
+  ipcMain.handle(IpcChannels.updateExpense, async (_event, raw: unknown) => {
+    const input = updateExpenseRequestSchema.parse(raw)
+    const entry = updateExpenseEntry(input.id, {
+      categoryId: input.categoryId,
+      date: input.date,
+      amountMinor: input.amount,
+      currency: input.currency,
+      note: input.note,
+      liabilityId: input.liabilityId
+    })
+    emitLocalEvent('expense.updated', { id: entry.id, date: entry.date })
+    return entry
+  })
+
   ipcMain.handle(IpcChannels.deleteExpense, async (_event, raw: unknown) => {
     const { id } = idRequestSchema.parse(raw)
     return deleteExpenseEntry(id)
@@ -145,7 +176,8 @@ export function registerIpcHandlers(): void {
     return deleteLot(id)
   })
 
-  ipcMain.handle(IpcChannels.getNetWorthHistory, async () => listNetWorthHistory(90))
+  // ~2y of daily snapshots so year rail + trend can use real history
+  ipcMain.handle(IpcChannels.getNetWorthHistory, async () => listNetWorthHistory(730))
 
   ipcMain.handle(IpcChannels.getCashflowHistory, async () => listCashflowHistory(18))
 }

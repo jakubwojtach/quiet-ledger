@@ -67,10 +67,10 @@ export function LotsSection({ asset, priceCurrency }: LotsSectionProps): JSX.Ele
   }
 
   return (
-    <section className="space-y-3 border-t border-line pt-4" data-testid="lots-section">
-      <div className="flex items-center justify-between">
-        <h3 className="font-medium">Purchases</h3>
-        <Button size="sm" variant="outline" onClick={openNew} data-testid="add-lot">
+    <section className="space-y-3" data-testid="lots-section">
+      <div className="flex items-center justify-between gap-2">
+        <h2 className="text-[13px] leading-5 font-semibold">Purchases</h2>
+        <Button size="sm" variant="outline" className="h-7" onClick={openNew} data-testid="add-lot">
           Add purchase
         </Button>
       </div>

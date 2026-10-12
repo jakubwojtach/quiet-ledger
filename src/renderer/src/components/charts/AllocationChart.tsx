@@ -1,16 +1,22 @@
-import type { JSX } from 'react'
+import { useMemo, type JSX } from 'react'
 import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip } from 'recharts'
 import { formatMinorUnits } from '@shared/money'
 import type { ClassBreakdown } from '@shared/types'
-import { CHART_COLORS, formatPlnCompact } from './chartTheme'
+import { useLocale } from '@renderer/lib/i18n/locale'
+import { useTheme } from '@renderer/lib/theme'
+import { chartColors, formatPlnCompact } from './chartTheme'
 
 export function AllocationChart({
   breakdown
 }: {
   breakdown: ClassBreakdown[]
 }): JSX.Element {
+  const { t, localeTag } = useLocale()
+  const { resolved } = useTheme()
+  const colors = useMemo(() => chartColors(), [resolved])
+
   const data = breakdown.map((row) => ({
-    name: row.label,
+    name: t(`class.${row.class}`),
     value: row.plnValueMinor,
     percent: row.percentOfTotal
   }))
@@ -18,7 +24,7 @@ export function AllocationChart({
   if (data.length === 0) {
     return (
       <p className="flex h-[180px] items-center justify-center text-sm text-ink-muted">
-        No holdings to chart yet.
+        {t('chart.noAllocation')}
       </p>
     )
   }
@@ -39,18 +45,19 @@ export function AllocationChart({
             animationBegin={80}
           >
             {data.map((_, i) => (
-              <Cell key={data[i].name} fill={CHART_COLORS[i % CHART_COLORS.length]} />
+              <Cell key={data[i].name} fill={colors[i % colors.length]} />
             ))}
           </Pie>
           <Tooltip
             formatter={(value, name) => {
               const v = typeof value === 'number' ? value : Number(value)
-              return [formatMinorUnits(v, 'PLN'), String(name)]
+              return [formatMinorUnits(v, 'PLN', localeTag), String(name)]
             }}
             contentStyle={{
-              borderRadius: 10,
-              border: '1px solid rgba(197,209,200,0.9)',
-              background: 'rgba(255,255,255,0.95)',
+              borderRadius: 12,
+              border: '1px solid var(--line)',
+              background: 'var(--color-card)',
+              color: 'var(--ink)',
               fontSize: 12
             }}
           />
@@ -61,7 +68,7 @@ export function AllocationChart({
           <li key={row.name} className="flex items-center gap-1.5">
             <span
               className="inline-block size-2 rounded-full"
-              style={{ background: CHART_COLORS[i % CHART_COLORS.length] }}
+              style={{ background: colors[i % colors.length] }}
             />
             {row.name} · {formatPlnCompact(row.value)}
           </li>

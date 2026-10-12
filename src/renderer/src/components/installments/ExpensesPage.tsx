@@ -1,10 +1,10 @@
 import { useMemo, useState, type JSX } from 'react'
-import { Link } from 'react-router-dom'
-import { formatMinorUnits } from '@shared/money'
 import type { ExpenseEntry } from '@shared/types'
 import { useDeleteExpense, useMonthSummary } from '@renderer/hooks/useNetWorth'
 import { ExpenseFormDialog } from '@renderer/components/forms/ExpenseFormDialog'
-import { useMonthParam, withMonth } from './useMonthParam'
+import { MoneyAmount } from '@renderer/components/shell/MoneyAmount'
+import { MASK, Sensitive } from '@renderer/lib/privacy'
+import { useMonthParam } from './useMonthParam'
 import { EXPENSE_GROUP_ORDER, todayInMonth } from './month'
 import { Button } from '@renderer/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@renderer/components/ui/card'
@@ -49,6 +49,7 @@ export function ExpensesPage(): JSX.Element {
   const { data, isLoading, isError, error, refetch } = useMonthSummary(month)
   const deleteExpense = useDeleteExpense(month)
   const [expenseOpen, setExpenseOpen] = useState(false)
+  const [editingExpense, setEditingExpense] = useState<ExpenseEntry | null>(null)
 
   const groups = useMemo(() => groupExpenses(data?.expenses ?? []), [data])
   const liabilities = useMemo(
@@ -85,19 +86,21 @@ export function ExpensesPage(): JSX.Element {
     <div className="flex flex-col gap-4" data-testid="installments-expenses">
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <Link
-            to={withMonth('/installments', month)}
-            className="text-sm text-ink-muted hover:text-ink"
-          >
-            ← Overview
-          </Link>
           <h2 className="font-display text-2xl font-semibold">Expenses · {month}</h2>
-          <p className="text-sm text-ink-muted">
-            {data.expenses.length} lines · {formatMinorUnits(data.expensesPlnMinor, 'PLN')} · grouped
-            like the sheet
+          <p className="flex flex-wrap items-center gap-1 text-sm text-ink-muted">
+            {data.expenses.length} lines ·{' '}
+            <MoneyAmount amountMinor={data.expensesPlnMinor} className="!text-sm" /> · grouped like
+            the sheet
           </p>
         </div>
-        <Button className="self-start" onClick={() => setExpenseOpen(true)} data-testid="add-expense-btn">
+        <Button
+          className="self-start"
+          onClick={() => {
+            setEditingExpense(null)
+            setExpenseOpen(true)
+          }}
+          data-testid="add-expense-btn"
+        >
           Add expense
         </Button>
       </div>
@@ -113,14 +116,14 @@ export function ExpensesPage(): JSX.Element {
           <Card key={g.categoryId} className="flex max-h-[min(28rem,55vh)] flex-col">
             <CardHeader className="shrink-0 flex-row items-baseline justify-between gap-3 space-y-0">
               <div>
-                <CardTitle>{g.categoryName}</CardTitle>
+                <CardTitle>
+                  <Sensitive placeholder={MASK.nameShort}>{g.categoryName}</Sensitive>
+                </CardTitle>
                 <CardDescription>
                   {g.entries.length} {g.entries.length === 1 ? 'item' : 'items'}
                 </CardDescription>
               </div>
-              <div className="font-medium tabular-nums">
-                {formatMinorUnits(g.totalMinor, 'PLN')}
-              </div>
+              <MoneyAmount amountMinor={g.totalMinor} className="!text-sm font-medium" />
             </CardHeader>
             <CardContent className="min-h-0 flex-1 space-y-1 overflow-y-auto pb-4">
               {g.entries.map((entry) => (
@@ -131,23 +134,40 @@ export function ExpensesPage(): JSX.Element {
                   }`}
                 >
                   <div className="min-w-0">
-                    <div className="truncate font-medium">
+                    <Sensitive
+                      placeholder={MASK.name}
+                      className="block truncate font-medium"
+                    >
                       {entry.note?.trim() || entry.categoryName}
-                    </div>
+                    </Sensitive>
                     <div className="text-xs text-ink-muted">{entry.date}</div>
                   </div>
                   <div className="flex shrink-0 items-center gap-2">
-                    <div className="tabular-nums font-medium">
-                      {formatMinorUnits(entry.amountMinor, entry.currency)}
-                    </div>
+                    <MoneyAmount
+                      amountMinor={entry.amountMinor}
+                      currency={entry.currency}
+                      className="!text-sm font-medium"
+                    />
                     {!entry.id.startsWith('optimistic-') && (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => deleteExpense.mutate(entry.id)}
-                      >
-                        Delete
-                      </Button>
+                      <>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => {
+                            setEditingExpense(entry)
+                            setExpenseOpen(true)
+                          }}
+                        >
+                          Edit
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => deleteExpense.mutate(entry.id)}
+                        >
+                          Delete
+                        </Button>
+                      </>
                     )}
                   </div>
                 </div>
@@ -159,10 +179,14 @@ export function ExpensesPage(): JSX.Element {
 
       <ExpenseFormDialog
         open={expenseOpen}
-        onOpenChange={setExpenseOpen}
+        onOpenChange={(open) => {
+          setExpenseOpen(open)
+          if (!open) setEditingExpense(null)
+        }}
         month={month}
         defaultDate={todayInMonth(month)}
         liabilities={liabilities}
+        expense={editingExpense}
       />
     </div>
   )

@@ -6,7 +6,9 @@
 export type LocalEventName =
   | 'dashboard.updated'
   | 'expense.created'
+  | 'expense.updated'
   | 'income.created'
+  | 'income.updated'
   | 'month.summary'
 
 type LocalListener = (event: LocalEventName, payload: unknown) => void

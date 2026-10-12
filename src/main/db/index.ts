@@ -272,6 +272,69 @@ export function createIncomeEntry(input: {
   }
 }
 
+export function updateIncomeEntry(input: {
+  id: string
+  month: string
+  amountMinor: number
+  currency: string
+  note?: string | null
+}): IncomeEntry {
+  const database = getDb()
+  const existing = database
+    .prepare(
+      `SELECT id, month, amount_minor, currency, note, created_at
+       FROM income_entries WHERE id = ?`
+    )
+    .get(input.id) as
+    | {
+        id: string
+        month: string
+        amount_minor: number
+        currency: string
+        note: string | null
+        created_at: string
+      }
+    | undefined
+
+  if (!existing) throw new Error(`Income not found: ${input.id}`)
+
+  database
+    .prepare(
+      `UPDATE income_entries SET
+        month = @month,
+        amount_minor = @amountMinor,
+        currency = @currency,
+        note = @note
+      WHERE id = @id`
+    )
+    .run({
+      id: input.id,
+      month: input.month,
+      amountMinor: input.amountMinor,
+      currency: input.currency,
+      note: input.note ?? null
+    })
+
+  const allocRows = database
+    .prepare(
+      `SELECT asset_id, amount_minor FROM income_allocations WHERE income_id = ?`
+    )
+    .all(input.id) as Array<{ asset_id: string; amount_minor: number }>
+
+  return {
+    id: input.id,
+    month: input.month,
+    amountMinor: input.amountMinor,
+    currency: input.currency,
+    note: input.note ?? null,
+    allocations: allocRows.map((a) => ({
+      assetId: a.asset_id,
+      amountMinor: a.amount_minor
+    })),
+    createdAt: existing.created_at
+  }
+}
+
 export function deleteIncomeEntry(id: string): { ok: true } {
   getDb().prepare('DELETE FROM income_entries WHERE id = ?').run(id)
   return { ok: true }

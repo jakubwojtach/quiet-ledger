@@ -1,0 +1,37 @@
+<!doctype html><html data-theme="dark"><head><meta charset="utf-8"><link rel="stylesheet" href="base.css"><style>
+body{grid-template-columns:360px 1fr}
+.side{background:var(--rail);border-right:1px solid var(--line);padding:0 28px 28px;display:flex;flex-direction:column;height:100vh}
+.mark{display:flex;align-items:center;gap:10px;margin-top:28px}.mark i{width:28px;height:28px;border-radius:8px;background:var(--accent);display:grid;place-items:center;color:var(--on-accent);font-style:normal;font-weight:700}
+.steps{margin-top:48px;display:flex;flex-direction:column;gap:4px;position:relative}
+.st{display:flex;gap:12px;align-items:flex-start;padding:8px 0}
+.st .n{width:22px;height:22px;border-radius:50%;border:1.5px solid var(--line-strong);display:grid;place-items:center;font:600 11px/1 Geist;color:var(--ink-3);flex:none;background:var(--rail)}
+.st.on .n{background:var(--accent);border-color:var(--accent);color:var(--on-accent)}
+.st b{display:block;font-weight:500;color:var(--ink-2)}.st.on b{color:var(--ink)}.st small{font-size:12px;line-height:16px;color:var(--ink-3)}
+.steps::before{content:"";position:absolute;left:10.5px;top:22px;bottom:22px;border-left:1.5px solid var(--line)}
+.local{margin-top:auto;display:flex;gap:10px;padding:12px;border:1px solid var(--line);border-radius:10px;font-size:12px;line-height:18px;color:var(--ink-2)}
+.main{display:flex;align-items:center;justify-content:center;height:100vh}
+.q{width:560px}
+.q h1{font:600 28px/36px Geist;letter-spacing:-.025em;margin-top:8px}
+.opts{display:flex;flex-direction:column;gap:10px;margin-top:28px}
+.opt{display:flex;gap:14px;align-items:center;padding:14px 16px;border:1px solid var(--line);border-radius:10px;background:var(--surface-1)}
+.opt .ic{width:36px;height:36px;border-radius:9px;background:var(--surface-2);display:grid;place-items:center;color:var(--ink-2)}
+.opt .ic svg{width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:1.6}
+.opt b{font-weight:500;display:block}.opt small{font-size:12px;line-height:16px;color:var(--ink-3)}
+.opt .rd{margin-left:auto;width:18px;height:18px;border-radius:50%;border:1.5px solid var(--line-strong)}
+.opt.on{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent);background:var(--accent-subtle)}.opt.on .rd{border:5px solid var(--accent)}.opt.on .ic{color:var(--accent)}
+.foot{display:flex;align-items:center;gap:8px;margin-top:28px}
+</style></head><body>
+<aside class="side"><div class="lights" style="padding-left:0"><i></i><i></i><i></i></div>
+<div class="mark"><i>zł</i><div><b style="font-weight:600">Savings Net Worth</b><div class="label">Setup · about 1 minute</div></div></div>
+<div class="steps"><div class="st on"><span class="n">1</span><div><b>What to track</b><small>Net worth, cashflow or both</small></div></div>
+<div class="st"><span class="n">2</span><div><b>Areas of interest</b><small>Optional</small></div></div>
+<div class="st"><span class="n">3</span><div><b>Make it yours</b><small>Accent and typeface</small></div></div>
+<div class="st"><span class="n">4</span><div><b>Ready</b><small>Review and open the app</small></div></div></div>
+<div class="local"><svg class="icon" style="width:16px;height:16px;flex:none;margin-top:1px" viewBox="0 0 16 16"><rect x="3" y="7" width="10" height="7" rx="1.5"/><path d="M5.5 7V5a2.5 2.5 0 0 1 5 0v2"/></svg><span>Everything stays on this Mac in <code style="font:450 11px/16px 'Geist Mono'">networth.sqlite</code>. No account and no cloud database.</span></div></aside>
+<div class="main"><div class="q"><div class="micro">Step 1 of 4</div><h1>What do you want to track?</h1><div class="ink2" style="margin-top:6px">You can change this later in Settings.</div>
+<div class="opts">
+<div class="opt"><span class="ic"><svg viewBox="0 0 16 16"><path d="M2 12.5 6 8l3 2.5L14 4"/><path d="M10.5 4H14v3.5"/></svg></span><div><b>Net worth only</b><small>Property, savings accounts, investments and their value over time</small></div><span class="rd"></span></div>
+<div class="opt"><span class="ic"><svg viewBox="0 0 16 16"><path d="M3 5h10M3 5l2.5-2.5M3 5l2.5 2.5M13 11H3m10 0-2.5-2.5M13 11l-2.5 2.5"/></svg></span><div><b>Cashflow only</b><small>Monthly income, expenses and loan instalments</small></div><span class="rd"></span></div>
+<div class="opt on"><span class="ic"><svg viewBox="0 0 16 16"><rect x="2" y="2.5" width="5" height="11" rx="1"/><rect x="9" y="2.5" width="5" height="11" rx="1"/></svg></span><div><b>Both</b><small>Recommended. Kept income from Cashflow shows up next to net worth.</small></div><span class="rd"></span></div></div>
+<div class="foot"><span class="btn ghost">Skip setup</span><span class="sp"></span><span class="btn" style="opacity:.45">Back</span><span class="btn primary">Continue <kbd style="color:inherit;border-color:oklch(0 0 0 / .2)">↵</kbd></span></div></div></div>
+</body></html>

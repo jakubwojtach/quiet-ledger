@@ -6,7 +6,7 @@ export function Card({ className, ...props }: React.HTMLAttributes<HTMLDivElemen
   return (
     <div
       className={cn(
-        'min-w-0 max-w-full overflow-hidden rounded-xl border border-line/70 bg-white/65 shadow-[0_12px_40px_-28px_rgba(15,46,34,0.45)] backdrop-blur-md',
+        'card surface-card min-w-0 max-w-full overflow-hidden',
         className
       )}
       {...props}
@@ -25,14 +25,19 @@ export function CardTitle({
   className,
   ...props
 }: React.HTMLAttributes<HTMLHeadingElement>): JSX.Element {
-  return <h3 className={cn('font-display text-lg font-semibold tracking-tight', className)} {...props} />
+  return (
+    <h3
+      className={cn('card-title font-display text-lg font-semibold tracking-tight', className)}
+      {...props}
+    />
+  )
 }
 
 export function CardDescription({
   className,
   ...props
 }: React.HTMLAttributes<HTMLParagraphElement>): JSX.Element {
-  return <p className={cn('text-sm text-ink-muted', className)} {...props} />
+  return <p className={cn('text-sm text-base-content/70', className)} {...props} />
 }
 
 export function CardContent({

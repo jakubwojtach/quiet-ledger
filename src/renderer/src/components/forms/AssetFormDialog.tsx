@@ -7,14 +7,16 @@ import { useUpsertAsset } from '@renderer/hooks/useNetWorth'
 import { Button } from '@renderer/components/ui/button'
 import { Input } from '@renderer/components/ui/input'
 import { Label } from '@renderer/components/ui/label'
+import { NativeSelect } from '@renderer/components/ui/native-select'
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle
-} from '@renderer/components/ui/dialog'
+  Sheet,
+  SheetBody,
+  SheetContent,
+  SheetDescription,
+  SheetFooter,
+  SheetHeader,
+  SheetTitle
+} from '@renderer/components/ui/sheet'
 
 const CLASSES = Object.keys(ASSET_CLASS_LABELS) as AssetClass[]
 
@@ -241,20 +243,20 @@ export function AssetFormDialog({ open, onOpenChange, asset }: AssetFormDialogPr
   }
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent data-testid="asset-form-dialog">
-        <DialogHeader>
-          <DialogTitle>{editing ? 'Edit holding' : 'Add holding'}</DialogTitle>
-          <DialogDescription>
+    <Sheet open={open} onOpenChange={onOpenChange}>
+      <SheetContent data-testid="asset-form-dialog" className="max-w-[460px]">
+        <SheetHeader>
+          <SheetTitle>{editing ? 'Edit holding' : 'Add holding'}</SheetTitle>
+          <SheetDescription>
             Enter amounts in normal currency units (e.g. 1000.50). Saved as grosze/cents locally.
-          </DialogDescription>
-        </DialogHeader>
-        <form className="grid gap-3" onSubmit={(e) => void onSubmit(e)}>
+          </SheetDescription>
+        </SheetHeader>
+        <form className="flex min-h-0 flex-1 flex-col" onSubmit={(e) => void onSubmit(e)}>
+          <SheetBody className="grid content-start gap-3.5">
           <div className="space-y-1.5">
             <Label htmlFor="asset-class">Type</Label>
-            <select
+            <NativeSelect
               id="asset-class"
-              className="flex h-10 w-full rounded-md border border-line bg-white px-3 text-sm"
               value={cls}
               disabled={editing}
               onChange={(e) => setCls(e.target.value as AssetClass)}
@@ -264,7 +266,7 @@ export function AssetFormDialog({ open, onOpenChange, asset }: AssetFormDialogPr
                   {ASSET_CLASS_LABELS[c]}
                 </option>
               ))}
-            </select>
+            </NativeSelect>
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="asset-name">Name</Label>
@@ -423,19 +425,19 @@ export function AssetFormDialog({ open, onOpenChange, asset }: AssetFormDialogPr
             <Input id="asset-notes" value={notes} onChange={(e) => setNotes(e.target.value)} />
           </div>
 
-          {error && <p className="text-sm text-accent">{error}</p>}
-
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+          {error ? <p className="text-[13px] text-[var(--loss)]">{error}</p> : null}
+          </SheetBody>
+          <SheetFooter>
+            <Button type="button" variant="outline" size="sm" onClick={() => onOpenChange(false)}>
               Cancel
             </Button>
-            <Button type="submit" disabled={upsert.isPending}>
+            <Button type="submit" size="sm" disabled={upsert.isPending}>
               {upsert.isPending ? 'Saving…' : editing ? 'Save changes' : 'Add holding'}
             </Button>
-          </DialogFooter>
+          </SheetFooter>
         </form>
-      </DialogContent>
-    </Dialog>
+      </SheetContent>
+    </Sheet>
   )
 }
 

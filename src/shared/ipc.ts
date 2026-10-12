@@ -11,6 +11,7 @@ export const IpcChannels = {
   deleteAsset: 'networth:deleteAsset',
   listIncome: 'networth:listIncome',
   createIncome: 'networth:createIncome',
+  updateIncome: 'networth:updateIncome',
   deleteIncome: 'networth:deleteIncome',
   refreshPrices: 'networth:refreshPrices',
   listLiabilities: 'networth:listLiabilities',
@@ -19,6 +20,7 @@ export const IpcChannels = {
   listExpenseCategories: 'networth:listExpenseCategories',
   getMonthSummary: 'networth:getMonthSummary',
   createExpense: 'networth:createExpense',
+  updateExpense: 'networth:updateExpense',
   deleteExpense: 'networth:deleteExpense',
   getDatabaseInfo: 'networth:getDatabaseInfo',
   listLots: 'networth:listLots',
@@ -73,6 +75,14 @@ export const createIncomeRequestSchema = z.object({
     .default([])
 })
 
+export const updateIncomeRequestSchema = z.object({
+  id: z.string().uuid(),
+  month: monthSchema,
+  amount: moneyMajorToMinor,
+  currency: currencySchema.default('PLN'),
+  note: z.string().nullable().optional()
+})
+
 export const getMonthSummaryRequestSchema = z.object({
   month: monthSchema
 })
@@ -84,6 +94,10 @@ export const createExpenseRequestSchema = z.object({
   currency: currencySchema.default('PLN'),
   note: z.string().nullable().optional(),
   liabilityId: z.string().uuid().nullable().optional()
+})
+
+export const updateExpenseRequestSchema = createExpenseRequestSchema.extend({
+  id: z.string().uuid()
 })
 
 const assetBase = {
@@ -211,6 +225,7 @@ export const IpcRequestSchemas = {
   [IpcChannels.deleteAsset]: idRequestSchema,
   [IpcChannels.listIncome]: emptyRequestSchema,
   [IpcChannels.createIncome]: createIncomeRequestSchema,
+  [IpcChannels.updateIncome]: updateIncomeRequestSchema,
   [IpcChannels.deleteIncome]: idRequestSchema,
   [IpcChannels.refreshPrices]: emptyRequestSchema,
   [IpcChannels.listLiabilities]: emptyRequestSchema,
@@ -219,6 +234,7 @@ export const IpcRequestSchemas = {
   [IpcChannels.listExpenseCategories]: emptyRequestSchema,
   [IpcChannels.getMonthSummary]: getMonthSummaryRequestSchema,
   [IpcChannels.createExpense]: createExpenseRequestSchema,
+  [IpcChannels.updateExpense]: updateExpenseRequestSchema,
   [IpcChannels.deleteExpense]: idRequestSchema,
   [IpcChannels.getDatabaseInfo]: emptyRequestSchema,
   [IpcChannels.listLots]: listLotsRequestSchema,
@@ -232,14 +248,18 @@ export type GetAssetRequest = z.infer<typeof getAssetRequestSchema>
 export type IdRequest = z.infer<typeof idRequestSchema>
 /** Input shape before transform (UI / callers) */
 export type CreateIncomeRequest = z.input<typeof createIncomeRequestSchema>
+export type UpdateIncomeRequest = z.input<typeof updateIncomeRequestSchema>
 export type CreateExpenseRequest = z.input<typeof createExpenseRequestSchema>
+export type UpdateExpenseRequest = z.input<typeof updateExpenseRequestSchema>
 export type UpsertAssetRequest = z.input<typeof upsertAssetRequestSchema>
 export type UpsertLiabilityRequest = z.input<typeof upsertLiabilityRequestSchema>
 export type GetMonthSummaryRequest = z.infer<typeof getMonthSummaryRequestSchema>
 export type UpsertAssetParsed = z.output<typeof upsertAssetRequestSchema>
 export type UpsertLiabilityParsed = z.output<typeof upsertLiabilityRequestSchema>
 export type CreateIncomeParsed = z.output<typeof createIncomeRequestSchema>
+export type UpdateIncomeParsed = z.output<typeof updateIncomeRequestSchema>
 export type CreateExpenseParsed = z.output<typeof createExpenseRequestSchema>
+export type UpdateExpenseParsed = z.output<typeof updateExpenseRequestSchema>
 export type ListLotsRequest = z.infer<typeof listLotsRequestSchema>
 export type UpsertLotRequest = z.input<typeof upsertLotRequestSchema>
 export type UpsertLotParsed = z.output<typeof upsertLotRequestSchema>

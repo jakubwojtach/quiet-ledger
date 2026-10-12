@@ -1,0 +1,58 @@
+<!doctype html><html data-theme="light"><head><meta charset="utf-8"><link rel="stylesheet" href="base.css"><style>
+.hero{display:flex;align-items:flex-end;gap:24px}
+.hero .v{font:500 56px/60px Geist;font-feature-settings:"tnum" 1;letter-spacing:-.035em;margin-top:6px}
+.hero .v .dec,.hero .v .cur{color:var(--ink-3)}.hero .v .cur{font-size:28px;letter-spacing:-.02em;margin-left:10px}
+.facts{display:flex;gap:20px;margin-top:10px;color:var(--ink-2)}.facts b{font-weight:500;color:var(--ink)}
+.cols{display:grid;grid-template-columns:minmax(0,1fr) 360px;gap:16px;flex:1;min-height:0}
+.stack{display:flex;flex-direction:column;gap:16px;min-height:0}
+.hist{padding:14px 16px 16px}
+.tl{position:relative;height:64px;margin:18px 4px 6px}
+.tl .base{position:absolute;left:0;right:0;top:22px;border-top:1px dashed var(--line-strong)}
+.tl .seg7{position:absolute;top:18px;height:9px;width:9px;border-radius:50%;border:1.5px solid var(--line-strong);background:var(--surface-1)}
+.tl .seg7.f{background:var(--accent);border-color:var(--accent);box-shadow:0 0 0 4px var(--accent-subtle)}
+.tl .lab{position:absolute;top:36px;font-size:12px;line-height:16px;transform:translateX(-50%);white-space:nowrap;text-align:center}
+.hold{padding:14px 16px 4px}
+.tl2{display:grid;grid-template-columns:repeat(7,1fr);margin-top:16px;position:relative}.tl2::before{content:"";position:absolute;left:4px;right:calc(100%/7 - 4px);top:4px;border-top:1px dashed var(--line-strong)}.tl2 div{display:flex;flex-direction:column;gap:2px;font-size:12px;line-height:16px;position:relative}.tl2 i{width:9px;height:9px;border-radius:50%;border:1.5px solid var(--line-strong);background:var(--surface-1);margin-bottom:8px}.tl2 i.f{background:var(--accent);border-color:var(--accent);box-shadow:0 0 0 4px var(--accent-subtle)}
+.hold td:first-child{padding-left:0}
+.nm{display:flex;align-items:center;gap:10px}.nm .ic{width:28px;height:28px;border-radius:7px;background:var(--surface-2);display:grid;place-items:center;color:var(--ink-2)}
+.nm .ic svg{width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:1.6}
+.nm b{font-weight:500;display:block;line-height:18px}.nm small{font-size:12px;line-height:16px;color:var(--ink-3)}
+.share{display:flex;align-items:center;gap:10px;justify-content:flex-end}.share .bartrack{width:72px}.share .bartrack i{background:var(--accent)}
+tr.more td{color:var(--ink-2);border-bottom:0}
+.comp{padding:14px 16px 16px}
+.stackbar{display:flex;height:10px;border-radius:5px;overflow:hidden;gap:2px;margin:14px 0 14px}
+.legend div{display:flex;align-items:center;gap:8px;height:28px}.legend .sw{width:8px;height:8px;border-radius:2px}
+.legend .p{margin-left:auto;color:var(--ink-3);width:52px;text-align:right}.legend .a{width:112px;text-align:right}
+.sp-row{display:grid;grid-template-columns:1fr auto;row-gap:2px;padding:10px 0;border-top:1px solid var(--line)}
+.sp-row:first-of-type{border-top:0}
+.cb{height:6px;border-radius:3px;background:var(--surface-3);position:relative;margin-top:8px;grid-column:1/3}
+.cb i{position:absolute;left:0;top:0;bottom:0;border-radius:3px;background:var(--cat-5)}.cb em{position:absolute;top:0;bottom:0;border-radius:3px;background:var(--gain)}
+.liab{display:flex;align-items:center;gap:10px;padding:12px 16px}
+@media (max-width:1359px){body{grid-template-columns:208px 1fr}.cols{grid-template-columns:minmax(0,1fr) 320px}.col-valued{display:none}.share .bartrack{width:48px}.content,.bar{padding-left:24px;padding-right:24px}.hero .v{font-size:48px;line-height:52px}}</style></head><body><script src="rail.js"></script><script>rail('nw')</script>
+<main><div class="bar"><h1>Net worth</h1><span class="chip"><span class="dot gain"></span>Snapshot · just now</span><span class="sp"></span>
+<span class="btn ghost" title="Hide amounts ⌘⇧H"><svg viewBox="0 0 16 16"><path d="M1.5 8S4 3.5 8 3.5 14.5 8 14.5 8 12 12.5 8 12.5 1.5 8 1.5 8Z"/><circle cx="8" cy="8" r="2"/></svg></span>
+<span class="btn"><svg viewBox="0 0 16 16"><path d="M13.5 8a5.5 5.5 0 1 1-1.6-3.9M13.5 2.5v3h-3"/></svg>Refresh prices</span><span class="btn primary"><svg viewBox="0 0 16 16"><path d="M8 3v10M3 8h10"/></svg>Add holding</span></div>
+<div class="content">
+<section class="hero"><div><div class="label">Net worth · 12 Oct 2026 · PLN</div>
+<div class="v num">3 365 429<span class="dec">,22</span><span class="cur">zł</span></div>
+<div class="facts"><span><b class="num">18</b> assets</span><span><b class="num">0</b> liabilities · debt <b class="num">0 %</b></span><span>Tracked since <b>11 Oct 2026</b></span></div></div>
+<span class="sp"></span><div class="seg"><span>1M</span><span>YTD</span><span>1Y</span><span class="on">All</span></div></section>
+<div class="cols"><div class="stack">
+<section class="card hist"><div style="display:flex;align-items:center;gap:8px"><h2 style="font:600 13px/20px Geist">History</h2><span class="chip">2 of 7 snapshots</span><span class="sp"></span><span class="dim" style="font-size:12px">Trend line appears at 7 daily snapshots · 5 to go</span></div>
+<div class="tl2"><div><i class="f"></i><span class="dim">11 Oct</span><span class="">first snapshot</span></div><div><i class="f"></i><span class="dim">12 Oct</span><span class="num">3 365 429,22</span></div><div><i class=""></i><span class="dim">13 Oct</span><span class="dim"></span></div><div><i class=""></i><span class="dim">14 Oct</span><span class="dim"></span></div><div><i class=""></i><span class="dim">15 Oct</span><span class="dim"></span></div><div><i class=""></i><span class="dim">16 Oct</span><span class="dim"></span></div><div><i class=""></i><span class="dim">17 Oct</span><span class="dim">trend unlocks</span></div></div></section>
+<section class="card hold"><div style="display:flex;align-items:center;gap:8px;margin-bottom:10px"><h2 style="font:600 13px/20px Geist">Holdings</h2><span class="dim">18</span><span class="sp"></span><div class="seg"><span class="on">Value</span><span>Gain</span><span>Name</span></div></div>
+<table><tr><th>Holding</th><th class="r" style="width:120px">Value</th><th class="r" style="width:136px">Share</th><th class="r" style="width:112px">Since purchase</th><th class="r col-valued" style="width:72px">Valued</th></tr>
+<tr><td><div class="nm"><span class="ic"><svg viewBox="0 0 16 16"><path d="M2.5 7 8 2.5 13.5 7v6.5h-11Z"/></svg></span><span><b>Fort Wola 12B/23, Warszawa</b><small>Apartment · RCN catalog</small></span></div></td><td class="r num">1 492 444,57</td><td><div class="share"><div class="bartrack"><i style="width:44.3%"></i></div><span class="num" style="width:48px">44,3 %</span></div></td><td class="r num gain">+152,6 %</td><td class="r dim col-valued">1 Oct</td></tr>
+<tr><td><div class="nm"><span class="ic"><svg viewBox="0 0 16 16"><path d="M2 6h12L8 2.5Zm1.5 1v5m3-5v5m3-5v5m3-5v5M2 13.5h12"/></svg></span><span><b>Otwarte Konto Oszczędnościowe</b><small>Cash · ING</small></span></div></td><td class="r num">428 490,20</td><td><div class="share"><div class="bartrack"><i style="width:12.7%"></i></div><span class="num" style="width:48px">12,7 %</span></div></td><td class="r dim">—</td><td class="r dim col-valued">manual</td></tr>
+<tr><td><div class="nm"><span class="ic"><svg viewBox="0 0 16 16"><path d="M2 12 6 4l4 8M8 9h6"/></svg></span><span><b>Działka Nefrytowa, Szczecin</b><small>Land · asking-price catalog</small></span></div></td><td class="r num">326 457,00</td><td><div class="share"><div class="bartrack"><i style="width:9.7%"></i></div><span class="num" style="width:48px">9,7 %</span></div></td><td class="r num gain">+16,6 %</td><td class="r dim col-valued">1 Oct</td></tr>
+<tr class="more"><td><div class="nm"><span class="ic" style="background:transparent;border:1px dashed var(--line-strong)">+15</span><span>15 more holdings</span></div></td><td class="r num">1 118 037,45</td><td><div class="share"><div class="bartrack"><i style="width:33.2%;background:var(--cat-5)"></i></div><span class="num" style="width:48px">33,2 %</span></div></td><td></td><td class="r col-valued"><span class="btn ghost" style="height:24px;padding:0 6px">Show all</span></td></tr></table></section>
+</div>
+<div class="stack">
+<section class="card comp"><h2 style="font:600 13px/20px Geist">Composition</h2>
+<div class="stackbar"><i style="width:44.3%;background:var(--cat-1)"></i><i style="width:12.7%;background:var(--cat-2)"></i><i style="width:9.7%;background:var(--cat-4)"></i><i style="width:33.3%;background:var(--cat-5)"></i></div>
+<div class="legend"><div><span class="sw" style="background:var(--cat-1)"></span>Fort Wola<span class="p num">44,3 %</span></div><div><span class="sw" style="background:var(--cat-2)"></span>ING savings<span class="p num">12,7 %</span></div><div><span class="sw" style="background:var(--cat-4)"></span>Działka Nefrytowa<span class="p num">9,7 %</span></div><div><span class="sw" style="background:var(--cat-5)"></span>15 more<span class="p num">33,2 %</span></div></div></section>
+<section class="card comp"><div style="display:flex"><h2 style="font:600 13px/20px Geist">Since purchase</h2><span class="sp"></span><span class="dim" style="font-size:12px">2 with cost basis</span></div>
+<div class="sp-row" style="margin-top:6px"><span>Fort Wola 12B/23</span><span class="num gain">+901 544,57</span><span class="dim num" style="font-size:12px">590 900 → 1 492 444,57</span><span class="num gain r" style="font-size:12px">+152,6 %</span><div class="cb"><i style="width:39.6%"></i><em style="left:39.6%;right:0"></em></div></div>
+<div class="sp-row"><span>Działka Nefrytowa</span><span class="num gain">+46 457,00</span><span class="dim num" style="font-size:12px">280 000 → 326 457</span><span class="num gain r" style="font-size:12px">+16,6 %</span><div class="cb"><i style="width:85.8%"></i><em style="left:85.8%;right:0"></em></div></div></section>
+<section class="card liab"><span class="ic dim" style="display:grid;place-items:center;width:28px;height:28px;border-radius:7px;background:var(--surface-2)"><svg class="icon" viewBox="0 0 16 16"><rect x="2" y="4" width="12" height="8" rx="1.5"/><path d="M2 7h12"/></svg></span><div><div style="font-weight:500">No liabilities</div><div class="dim" style="font-size:12px;line-height:16px">Debt-free · 0 zł</div></div><span class="sp"></span><span class="btn ghost">Add loan</span></section>
+</div></div></div></main></body></html>

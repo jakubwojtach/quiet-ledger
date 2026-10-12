@@ -1,0 +1,37 @@
+<!doctype html><html data-theme="dark"><head><meta charset="utf-8"><link rel="stylesheet" href="base.css"><style>
+.wrap{display:grid;grid-template-columns:184px minmax(0,760px);gap:40px;padding:24px 32px;overflow:hidden}
+.snav{display:flex;flex-direction:column;gap:2px;position:sticky;top:0}
+.snav span{height:28px;display:flex;align-items:center;padding:0 10px;border-radius:6px;color:var(--ink-2);font-weight:500}.snav span.on{background:var(--surface-2);color:var(--ink)}
+h3{font:600 13px/20px Geist;margin:0 0 8px}
+.sec{margin-bottom:18px}
+.rows{border:1px solid var(--line);border-radius:10px;background:var(--surface-1)}
+.rw{display:flex;align-items:center;gap:16px;min-height:48px;padding:8px 16px;border-top:1px solid var(--line)}.rw:first-child{border-top:0}
+.rw .t{flex:1}.rw .t b{font-weight:500;display:block}.rw .t small{font-size:12px;line-height:16px;color:var(--ink-3)}
+.sw{width:20px;height:20px;border-radius:50%;display:inline-block;margin-left:8px;box-shadow:inset 0 0 0 1px oklch(1 0 0 / .1)}.sw.on{outline:2px solid var(--ink);outline-offset:2px}
+.fonts{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;padding:10px 16px 14px}
+.fp{border:1px solid var(--line);border-radius:8px;padding:10px 12px}.fp.on{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent)}
+.fp .pv{font-size:20px;line-height:26px;letter-spacing:-.02em}.fp small{font-size:12px;color:var(--ink-3)}
+.tags{display:flex;gap:6px;flex-wrap:wrap}.tag{height:24px;padding:0 10px;border-radius:12px;border:1px solid var(--line-strong);display:flex;align-items:center;font-size:12px;font-weight:500;color:var(--ink-2)}.tag.on{background:var(--accent-subtle);border-color:transparent;color:var(--accent)}
+code{font:450 12px/16px "Geist Mono";color:var(--ink-2);background:var(--surface-2);padding:2px 6px;border-radius:4px}
+</style></head><body><script src="rail.js"></script><script>rail('set')</script>
+<main><div class="bar"><h1>Settings</h1></div><div class="wrap">
+<div class="snav"><span class="on">General</span><span>Appearance</span><span>Modules</span><span>Data &amp; privacy</span><span>Setup guide</span></div>
+<div>
+<div class="sec"><h3>General</h3><div class="rows">
+<div class="rw"><div class="t"><b>Language</b><small>Interface and number formatting</small></div><div class="seg"><span class="on">English</span><span>Polski</span></div></div>
+<div class="rw"><div class="t"><b>Base currency</b><small>All totals are converted to this currency</small></div><span class="chip num">PLN · zł</span></div></div></div>
+<div class="sec"><h3>Appearance</h3><div class="rows">
+<div class="rw"><div class="t"><b>Theme</b></div><div class="seg"><span>Light</span><span>Dark</span><span class="on">Match system</span></div></div>
+<div class="rw"><div class="t"><b>Accent</b><small>Used for actions and the selected item. Gains stay green, losses red.</small></div>
+<span class="sw on" style="background:oklch(0.74 0.12 250)"></span><span class="sw" style="background:oklch(0.74 0.10 195)"></span><span class="sw" style="background:oklch(0.72 0.12 300)"></span><span class="sw" style="background:oklch(0.80 0.12 75)"></span><span class="sw" style="background:oklch(0.70 0.02 255)"></span></div>
+<div class="rw"><div class="t"><b>Density</b><small>Row height 44 px or 36 px</small></div><div class="seg"><span class="on">Comfortable</span><span>Compact</span></div></div><div class="rw" style="min-height:40px;padding-bottom:0"><div class="t"><b>Typeface</b><small>Numbers always use tabular figures</small></div></div>
+<div class="fonts"><div class="fp on"><div class="pv num" style="font-family:Geist">3 365 429</div><small>Quiet · Geist</small></div><div class="fp"><div class="pv" style="font-family:'Instrument Serif',Georgia,serif">3 365 429</div><small>Editorial · Instrument Serif</small></div><div class="fp"><div class="pv" style="font-family:'Plus Jakarta Sans',Inter">3 365 429</div><small>Classic · Jakarta</small></div><div class="fp"><div class="pv" style="font-family:system-ui">3 365 429</div><small>System · SF Pro</small></div></div></div></div>
+<div class="sec"><h3>Modules</h3><div class="rows">
+<div class="rw"><div class="t"><b>Net worth</b><small>Holdings, valuations, history</small></div><span class="toggle"></span></div>
+<div class="rw"><div class="t"><b>Cashflow</b><small>Income, expenses and loans per month</small></div><span class="toggle"></span></div>
+<div class="rw"><div class="t"><b>Areas of interest</b><small>Tailors empty states and suggestions</small></div><div class="tags"><span class="tag on">ETFs &amp; funds</span><span class="tag on">Property</span><span class="tag on">Cash &amp; savings</span><span class="tag on">Loans &amp; e-raty</span><span class="tag on">IKE / IKZE</span></div></div></div></div>
+<div class="sec"><h3>Data &amp; privacy</h3><div class="rows">
+<div class="rw"><div class="t"><b>Database</b><small><code>~/Library/Application Support/savings-net-worth/networth.sqlite</code></small></div><span class="btn">Show in Finder</span></div>
+<div class="rw"><div class="t"><b>Hide amounts</b><small>Blur all money values · <kbd>⌘⇧H</kbd></small></div><span class="toggle off"></span></div>
+<div class="rw"><div class="t"><b>Hide when the window loses focus</b><small>For screen sharing and calls</small></div><span class="toggle off"></span></div></div></div>
+</div></div></main></body></html>

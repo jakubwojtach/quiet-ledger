@@ -99,9 +99,12 @@ export interface CatalogEstimate {
   /** Seeded created_at; null means first-seed time. */
   createdAt: string | null
   dismissKey: string
-  catalog: { label: string; asOf: string; plnPerM2: number; source: string }
+  catalog: typeof FORT_WOLA_CATALOG | typeof NEFRYTOWA_CATALOG
   /** Short "how worth is computed" line for the detail card. */
   formula: string
+  areaM2: number
+  purchaseYear: number | null
+  purchaseApprox: boolean
 }
 
 function zl(minor: number): string {
@@ -121,7 +124,10 @@ export function catalogEstimates(): CatalogEstimate[] {
       createdAt: `${FORT_WOLA_UNIT.purchasedYear}-01-01T00:00:00.000Z`,
       dismissKey: 'fort_wola_dismissed',
       catalog: FORT_WOLA_CATALOG,
-      formula: `${zl(fortWola.apartmentMinor)} area + ${zl(fortWola.parkingMinor)} parking`
+      formula: `${zl(fortWola.apartmentMinor)} area + ${zl(fortWola.parkingMinor)} parking`,
+      areaM2: FORT_WOLA_UNIT.areaM2,
+      purchaseYear: FORT_WOLA_UNIT.purchasedYear,
+      purchaseApprox: false
     },
     {
       assetId: NEFRYTOWA_ASSET_ID,
@@ -133,7 +139,10 @@ export function catalogEstimates(): CatalogEstimate[] {
       createdAt: null,
       dismissKey: 'nefrytowa_dismissed',
       catalog: NEFRYTOWA_CATALOG,
-      formula: `${NEFRYTOWA_PLOT.areaM2.toLocaleString('pl-PL')} m² × ${NEFRYTOWA_CATALOG.plnPerM2} zł/m² (asking)`
+      formula: `${NEFRYTOWA_PLOT.areaM2.toLocaleString('pl-PL')} m² × ${NEFRYTOWA_CATALOG.plnPerM2} zł/m² (asking)`,
+      areaM2: NEFRYTOWA_PLOT.areaM2,
+      purchaseYear: null,
+      purchaseApprox: true
     }
   ]
 }

@@ -19,6 +19,17 @@ export function formatMinorUnits(
   }).format(amount / 100)
 }
 
+/** Number only (no currency symbol) — pair with a small currency suffix in UI. */
+export function formatAmountNumber(
+  amount: MinorUnits,
+  locale = 'pl-PL'
+): string {
+  return new Intl.NumberFormat(locale, {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2
+  }).format(amount / 100)
+}
+
 export function majorToMinor(major: number): MinorUnits {
   return Math.round(major * 100)
 }

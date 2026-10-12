@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState, type JSX, type ReactNode } from 'react'
+import { useEffect, useMemo, useState, type JSX, type ReactNode } from 'react'
+import { PiggyBank, Wallet } from 'lucide-react'
 import {
   HashRouter,
   Navigate,
@@ -6,11 +7,9 @@ import {
   Routes,
   useLocation,
   useNavigate,
-  useParams
+  useParams,
+  useSearchParams
 } from 'react-router-dom'
-import { motion, useReducedMotion } from 'framer-motion'
-import { ClassBreakdownCard, TotalSavingsCard } from '@renderer/components/Dashboard'
-import { HoldingsList } from '@renderer/components/HoldingsList'
 import { AssetDetail } from '@renderer/components/AssetDetail'
 import {
   InstallmentsExpensesPage,
@@ -19,56 +18,61 @@ import {
   InstallmentsLoansPage,
   InstallmentsOverviewPage
 } from '@renderer/components/Installments'
+import { CashflowBar } from '@renderer/components/installments/CashflowBar'
 import { AssetFormDialog } from '@renderer/components/forms/AssetFormDialog'
-import { FadeUp, PageTransition } from '@renderer/components/motion/PageTransition'
-import { useDashboard, useDeleteAsset } from '@renderer/hooks/useNetWorth'
+import { OnboardingWizard } from '@renderer/components/OnboardingWizard'
+import { SettingsPage } from '@renderer/components/SettingsPage'
+import { AppRail } from '@renderer/components/shell/AppRail'
+import { ContextStrip } from '@renderer/components/shell/ContextStrip'
+import { FreshnessChip } from '@renderer/components/shell/FreshnessChip'
+import { PrivacyToggle } from '@renderer/components/shell/PrivacyToggle'
+import { SavingsDashboard } from '@renderer/components/savings/SavingsDashboard'
+import { PageTransition } from '@renderer/components/motion/PageTransition'
+import { useDashboard, useDeleteAsset, useNetWorthHistory } from '@renderer/hooks/useNetWorth'
+import { defaultHomePath } from '@renderer/lib/appPreferences'
+import { useLocale } from '@renderer/lib/i18n/locale'
+import { usePreferences } from '@renderer/lib/preferences'
 import type { Asset } from '@shared/types'
-import { Button } from '@renderer/components/ui/button'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@renderer/components/ui/card'
 import { cn } from '@renderer/lib/utils'
 
-type Tab = 'savings' | 'installments'
+const RAIL_COLLAPSED_KEY = 'app-rail-collapsed'
 
-const TAB_COPY: Record<Tab, { eyebrow: string; title: string; subtitle: string }> = {
-  savings: {
-    eyebrow: 'Savings',
-    title: 'Savings',
-    subtitle: 'Your holdings in PLN — edit locally; data stays in SQLite on this machine.'
-  },
-  installments: {
-    eyebrow: 'Installments',
-    title: 'Installments',
-    subtitle: 'Month-by-month cashflow, expenses, income, and loans.'
-  }
-}
+type Tab = 'savings' | 'installments' | 'settings'
 
 export default function App(): JSX.Element {
   return (
     <HashRouter>
+      <OnboardingWizard />
       <Routes>
-        <Route path="/" element={<Navigate to="/savings" replace />} />
+        <Route path="/" element={<HomeRedirect />} />
         <Route
           path="/savings"
           element={
-            <Shell tab="savings">
-              <SavingsListPage />
-            </Shell>
+            <ModuleGate module="savings">
+              <Shell tab="savings">
+                <SavingsListPage />
+              </Shell>
+            </ModuleGate>
           }
         />
         <Route
           path="/savings/:assetId"
           element={
-            <Shell tab="savings">
-              <HoldingPage />
-            </Shell>
+            <ModuleGate module="savings">
+              <Shell tab="savings">
+                <HoldingPage />
+              </Shell>
+            </ModuleGate>
           }
         />
         <Route
           path="/installments"
           element={
-            <Shell tab="installments">
-              <InstallmentsLayout />
-            </Shell>
+            <ModuleGate module="installments">
+              <Shell tab="installments">
+                <InstallmentsLayout />
+              </Shell>
+            </ModuleGate>
           }
         >
           <Route index element={<InstallmentsOverviewPage />} />
@@ -76,87 +80,52 @@ export default function App(): JSX.Element {
           <Route path="income" element={<InstallmentsIncomePage />} />
           <Route path="loans" element={<InstallmentsLoansPage />} />
         </Route>
-        <Route path="*" element={<Navigate to="/savings" replace />} />
+        <Route
+          path="/settings"
+          element={
+            <Shell tab="settings">
+              <SettingsPage />
+            </Shell>
+          }
+        />
+        <Route path="*" element={<HomeRedirect />} />
       </Routes>
     </HashRouter>
   )
 }
 
+function HomeRedirect(): JSX.Element {
+  const { prefs } = usePreferences()
+  return <Navigate to={defaultHomePath(prefs)} replace />
+}
+
+function ModuleGate({
+  module,
+  children
+}: {
+  module: 'savings' | 'installments'
+  children: ReactNode
+}): JSX.Element {
+  const { prefs } = usePreferences()
+  const allowed = module === 'savings' ? prefs.showSavings : prefs.showInstallments
+  if (!allowed) return <HomeRedirect />
+  return <>{children}</>
+}
+
 function SavingsListPage(): JSX.Element {
-  const navigate = useNavigate()
-  const { data: dashboard, isLoading, isError, error, refetch, isFetching } = useDashboard()
-  const [assetOpen, setAssetOpen] = useState(false)
-
-  if (isLoading) {
-    return (
-      <Card className="animate-pulse">
-        <CardHeader>
-          <CardTitle>Savings</CardTitle>
-          <CardDescription>Loading holdings…</CardDescription>
-        </CardHeader>
-        <CardContent className="h-40" />
-      </Card>
-    )
-  }
-
-  if (isError || !dashboard) {
-    return (
-      <Card>
-        <CardHeader>
-          <CardTitle>Could not load savings</CardTitle>
-          <CardDescription>{(error as Error)?.message ?? 'Unknown error'}</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Button onClick={() => void refetch()}>Retry</Button>
-        </CardContent>
-      </Card>
-    )
-  }
+  const { data, isLoading, isError, error, refetch, isFetching } = useDashboard()
+  const history = useNetWorthHistory()
 
   return (
-    <main className="flex w-full min-w-0 flex-col gap-4" data-testid="savings-view">
-      <TotalSavingsCard data={dashboard} isFetching={isFetching} />
-
-      {/* Breakdown sets the row height; holdings matches it and scrolls inside. */}
-      <div className="grid w-full min-w-0 items-stretch gap-4 lg:grid-cols-[1.15fr_0.85fr]">
-        <section className="min-w-0">
-          <ClassBreakdownCard data={dashboard} />
-        </section>
-
-        <aside className="min-h-0 min-w-0 lg:h-0 lg:min-h-full">
-          <FadeUp delay={0.1} className="h-full">
-            <Card className="flex h-full min-h-0 flex-col overflow-hidden">
-              <CardHeader className="flex shrink-0 flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-start sm:justify-between">
-                <div>
-                  <CardTitle>Holdings</CardTitle>
-                  <CardDescription>Open a holding for purchases and detail</CardDescription>
-                </div>
-                <Button data-testid="add-asset-btn" onClick={() => setAssetOpen(true)}>
-                  Add holding
-                </Button>
-              </CardHeader>
-              <CardContent className="min-h-0 flex-1 overflow-y-auto">
-                {dashboard.assets.length === 0 ? (
-                  <div className="rounded-lg border border-dashed border-line px-4 py-8 text-center">
-                    <p className="text-sm text-ink-muted">No holdings yet — add your first asset.</p>
-                    <Button className="mt-3" variant="outline" onClick={() => setAssetOpen(true)}>
-                      Add holding
-                    </Button>
-                  </div>
-                ) : (
-                  <HoldingsList
-                    assets={dashboard.assets}
-                    onOpenAsset={(id) => navigate(`/savings/${id}`)}
-                  />
-                )}
-              </CardContent>
-            </Card>
-          </FadeUp>
-        </aside>
-      </div>
-
-      <AssetFormDialog open={assetOpen} onOpenChange={setAssetOpen} asset={null} />
-    </main>
+    <SavingsDashboard
+      data={data}
+      isFetching={isFetching}
+      history={history.data ?? []}
+      isLoading={isLoading}
+      isError={isError}
+      error={(error as Error) ?? null}
+      onRetry={() => void refetch()}
+    />
   )
 }
 
@@ -171,17 +140,7 @@ function HoldingPage(): JSX.Element {
   const valued = dashboard?.assets.find((a) => a.asset.id === assetId) ?? null
 
   return (
-    <main className="mx-auto w-full max-w-3xl" data-testid="holding-page">
-      <div className="mb-4">
-        <Button
-          variant="ghost"
-          size="sm"
-          data-testid="back-to-savings"
-          onClick={() => navigate('/savings')}
-        >
-          ← Holdings
-        </Button>
-      </div>
+    <main className="w-full min-w-0" data-testid="holding-page">
       <AssetDetail
         assetId={assetId}
         valued={valued}
@@ -203,161 +162,128 @@ function HoldingPage(): JSX.Element {
 function Shell({ children, tab }: { children: ReactNode; tab: Tab }): JSX.Element {
   const navigate = useNavigate()
   const location = useLocation()
-  const [compact, setCompact] = useState(false)
-  const sentinelRef = useRef<HTMLDivElement>(null)
-  const copy = TAB_COPY[tab]
-  const onHoldingPage = location.pathname.startsWith('/savings/') && location.pathname !== '/savings'
-  const installmentsHeading =
-    location.pathname === '/installments/expenses'
-      ? 'Expenses'
-      : location.pathname === '/installments/income'
-        ? 'Income'
-        : location.pathname === '/installments/loans'
-          ? 'Loans'
-          : copy.title
-  const monthQuery = location.search.includes('month=') ? location.search : ''
+  const [searchParams] = useSearchParams()
+  const { t } = useLocale()
+  const { prefs } = usePreferences()
+  const dashboard = useDashboard()
+
+  const onHoldingPage =
+    location.pathname.startsWith('/savings/') && location.pathname !== '/savings'
+
+  const title =
+    onHoldingPage
+      ? t('nav.holding')
+      : tab === 'settings'
+        ? t('settings.title')
+        : tab === 'savings'
+          ? t('savings.title')
+          : t('installments.title')
+
+  const monthQuery = searchParams.get('month')
+
+  const [railCollapsed, setRailCollapsed] = useState(() => {
+    try {
+      return localStorage.getItem(RAIL_COLLAPSED_KEY) === '1'
+    } catch {
+      return false
+    }
+  })
 
   useEffect(() => {
-    const sentinel = sentinelRef.current
-    if (!sentinel) return
+    try {
+      localStorage.setItem(RAIL_COLLAPSED_KEY, railCollapsed ? '1' : '0')
+    } catch {
+      /* ignore */
+    }
+  }, [railCollapsed])
 
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        setCompact(!entry.isIntersecting)
-      },
-      { threshold: 0, rootMargin: '-1px 0px 0px 0px' }
-    )
+  const nav = useMemo(() => {
+    const items: {
+      id: string
+      label: string
+      active: boolean
+      onClick: () => void
+      icon: typeof PiggyBank
+    }[] = []
+    if (prefs.showSavings) {
+      items.push({
+        id: 'tab-savings',
+        label: t('tab.savings'),
+        icon: PiggyBank,
+        active: tab === 'savings',
+        onClick: () => navigate('/savings')
+      })
+    }
+    if (prefs.showInstallments) {
+      items.push({
+        id: 'tab-installments',
+        label: t('tab.installments'),
+        icon: Wallet,
+        active: tab === 'installments',
+        onClick: () => {
+          const q = monthQuery ? `?month=${monthQuery}` : ''
+          navigate(`/installments${q}`)
+        }
+      })
+    }
+    return items
+  }, [prefs.showSavings, prefs.showInstallments, tab, t, navigate, monthQuery])
 
-    observer.observe(sentinel)
-    return () => observer.disconnect()
-  }, [])
+  const freshnessAsOf = dashboard.data?.asOf ?? null
+  const freshnessStale = Boolean(dashboard.data?.fxStale)
 
   return (
-    <div className="flex min-h-screen w-full min-w-0 flex-col">
-      <div ref={sentinelRef} className="h-6 md:h-10" aria-hidden />
-      {/* Full-bleed sticky bar so scrolled content never peeks at the sides. */}
-      <header
-        data-testid="app-sticky-header"
-        data-compact={compact ? 'true' : 'false'}
-        className={cn(
-          'sticky top-0 z-30 w-full min-w-0',
-          'transition-[background-color,box-shadow,border-color] duration-300 ease-out',
-          compact
-            ? 'border-b border-line bg-paper shadow-[0_1px_0_rgba(20,32,26,0.06),0_12px_28px_-18px_rgba(15,46,34,0.35)]'
-            : 'border-b border-transparent bg-transparent'
-        )}
-      >
-        <div
-          className={cn(
-            'mx-auto w-full min-w-0 max-w-6xl px-4 md:px-8',
-            'transition-[padding] duration-300 ease-out',
-            compact ? 'py-3.5' : 'pb-0 pt-0'
-          )}
-        >
-          <p
-            className={cn(
-              'overflow-hidden text-xs font-semibold uppercase tracking-[0.2em] text-forest-soft',
-              'transition-[opacity,max-height,transform,margin] duration-300 ease-out',
-              compact
-                ? 'pointer-events-none mb-0 max-h-0 -translate-y-1 opacity-0'
-                : 'mb-0 max-h-6 translate-y-0 opacity-100'
-            )}
+    <div
+      className="flex min-h-screen w-full min-w-0 flex-col md:flex-row"
+      data-testid="app-shell"
+    >
+      <AppRail
+        className={cn(onHoldingPage && 'max-md:hidden')}
+        nav={nav}
+        periods={[]}
+        periodsLabel={t('rail.months')}
+        settingsActive={tab === 'settings'}
+        onOpenSettings={() => navigate('/settings')}
+        collapsed={railCollapsed}
+        onToggleCollapsed={() => setRailCollapsed((v) => !v)}
+      />
+
+      <div className="flex min-h-screen min-w-0 flex-1 flex-col">
+        {!onHoldingPage ? (
+          <header
+            data-testid="app-sticky-header"
+            className="sticky-frost sticky top-0 z-30 border-b border-[var(--line)] md:pt-1"
           >
-            {copy.eyebrow}
-          </p>
-          <h1
-            className={cn(
-              'font-display font-semibold tracking-tight text-ink',
-              'transition-[font-size,margin] duration-300 ease-out',
-              compact ? 'mt-0 text-xl md:text-2xl' : 'mt-1 text-3xl md:text-4xl'
-            )}
+            <div className="px-4 py-3 md:px-6 lg:px-8 xl:px-10">
+              {tab === 'installments' ? (
+                <CashflowBar />
+              ) : (
+                <ContextStrip
+                  title={title}
+                  leading={
+                    tab !== 'settings' ? (
+                      <FreshnessChip asOf={freshnessAsOf} stale={freshnessStale} />
+                    ) : null
+                  }
+                  trailing={<PrivacyToggle />}
+                />
+              )}
+            </div>
+          </header>
+        ) : null}
+
+        <div className="w-full min-w-0 flex-1 px-4 py-6 md:px-6 lg:px-8 xl:px-10">
+          <PageTransition
+            routeKey={
+              location.pathname.startsWith('/installments')
+                ? 'installments'
+                : location.pathname
+            }
           >
-            {onHoldingPage ? 'Holding' : installmentsHeading}
-          </h1>
-          <p
-            className={cn(
-              'max-w-xl overflow-hidden text-sm text-ink-muted md:text-base',
-              'transition-[opacity,max-height,margin,transform] duration-300 ease-out',
-              compact ||
-                onHoldingPage ||
-                (location.pathname !== '/installments' && tab === 'installments')
-                ? 'pointer-events-none mt-0 max-h-0 -translate-y-1 opacity-0'
-                : 'mt-2 max-h-16 translate-y-0 opacity-100'
-            )}
-          >
-            {copy.subtitle}
-          </p>
-          <nav
-            className={cn(
-              'flex gap-2 transition-[margin] duration-300 ease-out',
-              compact ? 'mt-2.5' : 'mt-4'
-            )}
-            aria-label="Primary"
-            role="tablist"
-          >
-            <TabButton
-              id="tab-savings"
-              active={tab === 'savings'}
-              onClick={() => navigate('/savings')}
-            >
-              Savings
-            </TabButton>
-            <TabButton
-              id="tab-installments"
-              active={tab === 'installments'}
-              onClick={() => navigate(`/installments${monthQuery}`)}
-            >
-              Installments
-            </TabButton>
-          </nav>
+            {children}
+          </PageTransition>
         </div>
-      </header>
-      <div className="mx-auto flex w-full min-w-0 max-w-6xl flex-col gap-6 px-4 py-6 md:px-8">
-        <PageTransition
-          routeKey={
-            location.pathname.startsWith('/installments') ? 'installments' : location.pathname
-          }
-        >
-          {children}
-        </PageTransition>
       </div>
     </div>
-  )
-}
-
-function TabButton({
-  id,
-  active,
-  onClick,
-  children
-}: {
-  id: string
-  active: boolean
-  onClick: () => void
-  children: ReactNode
-}): JSX.Element {
-  const reduce = useReducedMotion()
-  return (
-    <button
-      id={id}
-      type="button"
-      role="tab"
-      aria-selected={active}
-      data-testid={id}
-      onClick={onClick}
-      className={cn(
-        'relative min-h-10 cursor-pointer rounded-md px-5 py-2.5 text-sm font-medium transition-colors',
-        active ? 'text-white' : 'bg-paper-deep/80 text-ink hover:bg-line'
-      )}
-    >
-      {active && (
-        <motion.span
-          layoutId={reduce ? undefined : 'primary-tab'}
-          className="absolute inset-0 rounded-md bg-forest shadow-[0_8px_20px_-12px_rgba(31,77,56,0.9)]"
-          transition={{ type: 'spring', stiffness: 380, damping: 32 }}
-        />
-      )}
-      <span className="relative z-10">{children}</span>
-    </button>
   )
 }

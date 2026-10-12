@@ -10,6 +10,9 @@ import { resolveUserDataDir } from './userDataDir'
 app.setPath('userData', resolveUserDataDir())
 
 function createWindow(): void {
+  const isMac = process.platform === 'darwin'
+  const isWin = process.platform === 'win32'
+
   const mainWindow = new BrowserWindow({
     width: 1100,
     height: 760,
@@ -19,12 +22,31 @@ function createWindow(): void {
     autoHideMenuBar: true,
     title: PRODUCT_NAME,
     ...(process.platform === 'linux' ? { icon } : {}),
+    // Native materials: macOS vibrancy / Windows Mica. Linux keeps an opaque fallback.
+    ...(isMac
+      ? {
+          titleBarStyle: 'hiddenInset' as const,
+          trafficLightPosition: { x: 14, y: 14 },
+          vibrancy: 'under-window' as const,
+          visualEffectState: 'active' as const,
+          transparent: true,
+          backgroundColor: '#00000000'
+        }
+      : isWin
+        ? {
+            backgroundMaterial: 'mica' as const,
+            backgroundColor: '#00000000'
+          }
+        : {
+            backgroundColor: '#e4e8ee'
+          }),
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
       contextIsolation: true,
       nodeIntegration: false,
       sandbox: true,
-      webSecurity: true
+      webSecurity: true,
+      backgroundThrottling: false
     }
   })
 
@@ -49,8 +71,8 @@ app.whenReady().then(() => {
 
   // Dev needs unsafe-inline/eval + ws for Vite/React refresh; prod stays strict.
   const csp = is.dev
-    ? "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self' ws: wss: http://localhost:* http://127.0.0.1:*; font-src 'self' data:"
-    : "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; font-src 'self' data:"
+    ? "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' data:; connect-src 'self' ws: wss: http://localhost:* http://127.0.0.1:* https://fonts.googleapis.com https://fonts.gstatic.com; font-src 'self' data: https://fonts.gstatic.com"
+    : "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' data:; connect-src 'self' https://fonts.googleapis.com https://fonts.gstatic.com; font-src 'self' data: https://fonts.gstatic.com"
 
   session.defaultSession.webRequest.onHeadersReceived((details, callback) => {
     callback({

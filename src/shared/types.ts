@@ -281,6 +281,8 @@ export interface CashflowMonthPoint {
   expensesPlnMinor: MinorUnits
   installmentsPlnMinor: MinorUnits
   cashflowPlnMinor: MinorUnits
+  /** True when this month has no expense rows (vs a real 0). */
+  expensesMissing: boolean
 }
 
 export const QUANTITY_SCALE = 1_000_000
