@@ -157,6 +157,7 @@ html[data-theme='light'] {
     width: 100%;
     max-width: 100%;
     overflow-x: clip;
+    background-color: var(--bg);
   }
 
   body {
@@ -174,6 +175,25 @@ html[data-theme='light'] {
   #root {
     position: relative;
     z-index: 1;
+  }
+
+  /* Electron hiddenInset — without this the window cannot be moved */
+  .app-region-drag {
+    -webkit-app-region: drag;
+    app-region: drag;
+  }
+
+  .app-region-no-drag,
+  .app-region-drag button,
+  .app-region-drag a,
+  .app-region-drag input,
+  .app-region-drag select,
+  .app-region-drag textarea,
+  .app-region-drag [role='button'],
+  .app-region-drag [role='tab'],
+  .app-region-drag [role='textbox'] {
+    -webkit-app-region: no-drag;
+    app-region: no-drag;
   }
 
   .font-display {

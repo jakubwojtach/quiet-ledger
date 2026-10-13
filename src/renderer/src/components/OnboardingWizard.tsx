@@ -111,10 +111,11 @@ export function OnboardingWizard(): JSX.Element | null {
 
   return (
     <div
-      className="fixed inset-0 z-[100] grid grid-cols-1 md:grid-cols-[360px_1fr]"
+      className="fixed inset-0 z-[100] grid grid-cols-1 bg-[var(--bg)] md:grid-cols-[360px_1fr]"
       data-testid="onboarding-wizard"
     >
-      <aside className="flex flex-col border-b border-[var(--line)] bg-[var(--rail)] px-7 pt-8 pb-7 md:h-dvh md:border-r md:border-b-0 md:pt-10">
+      <aside className="flex flex-col border-b border-[var(--line)] bg-[var(--rail)] px-7 pt-8 pb-7 md:h-dvh md:border-r md:border-b-0 md:pt-0">
+        <div className="app-region-drag -mx-7 mb-2 hidden h-10 shrink-0 md:block" aria-hidden />
         <div className="flex items-center gap-2.5">
           <span className="grid size-7 place-items-center rounded-lg bg-[var(--accent)] text-[13px] font-bold text-white">
             zł
@@ -166,7 +167,7 @@ export function OnboardingWizard(): JSX.Element | null {
         </div>
       </aside>
 
-      <div className="flex items-center justify-center overflow-y-auto px-6 py-10 md:h-dvh">
+      <div className="flex items-center justify-center overflow-y-auto bg-[var(--bg)] px-6 py-10 md:h-dvh">
         <div className="w-full max-w-[560px]">
           <div className="text-[11px] font-semibold tracking-[0.14em] text-[var(--ink-3)] uppercase">
             {t('onboarding.stepOf', { n: step + 1, total: 4 })}

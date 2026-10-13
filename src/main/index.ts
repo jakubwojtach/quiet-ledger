@@ -22,23 +22,19 @@ function createWindow(): void {
     autoHideMenuBar: true,
     title: PRODUCT_NAME,
     ...(process.platform === 'linux' ? { icon } : {}),
-    // Native materials: macOS vibrancy / Windows Mica. Linux keeps an opaque fallback.
+    // Opaque chrome — transparent + vibrancy was painting a blank white window in Electron.
     ...(isMac
       ? {
           titleBarStyle: 'hiddenInset' as const,
           trafficLightPosition: { x: 14, y: 14 },
-          vibrancy: 'under-window' as const,
-          visualEffectState: 'active' as const,
-          transparent: true,
-          backgroundColor: '#00000000'
+          backgroundColor: '#0D0E10'
         }
       : isWin
         ? {
-            backgroundMaterial: 'mica' as const,
-            backgroundColor: '#00000000'
+            backgroundColor: '#0D0E10'
           }
         : {
-            backgroundColor: '#e4e8ee'
+            backgroundColor: '#0D0E10'
           }),
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),

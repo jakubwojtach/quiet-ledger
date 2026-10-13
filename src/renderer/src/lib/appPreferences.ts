@@ -150,7 +150,27 @@ export function readPreferences(): AppPreferences {
     const raw = localStorage.getItem(STORAGE_KEY)
     if (raw) {
       const parsed = JSON.parse(raw) as Partial<AppPreferences>
-      return normalizePreferences({ ...DEFAULT_PREFERENCES, ...parsed })
+      // Prefs written before the wizard existed have no flag — don't re-show it.
+      let onboardingCompleted =
+        typeof parsed.onboardingCompleted === 'boolean' ? parsed.onboardingCompleted : true
+
+      // One-shot Quiet Ledger migration: existing installs got defaulted to false.
+      try {
+        if (!localStorage.getItem('app-onboarding-migrate-ql1')) {
+          localStorage.setItem('app-onboarding-migrate-ql1', '1')
+          onboardingCompleted = true
+        }
+      } catch {
+        /* ignore */
+      }
+
+      const prefs = normalizePreferences({
+        ...DEFAULT_PREFERENCES,
+        ...parsed,
+        onboardingCompleted
+      })
+      writePreferences(prefs)
+      return prefs
     }
   } catch {
     /* ignore */

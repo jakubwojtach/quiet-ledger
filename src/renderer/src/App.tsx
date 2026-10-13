@@ -42,55 +42,64 @@ type Tab = 'savings' | 'installments' | 'settings'
 export default function App(): JSX.Element {
   return (
     <HashRouter>
-      <OnboardingWizard />
-      <Routes>
-        <Route path="/" element={<HomeRedirect />} />
-        <Route
-          path="/savings"
-          element={
-            <ModuleGate module="savings">
-              <Shell tab="savings">
-                <SavingsListPage />
-              </Shell>
-            </ModuleGate>
-          }
-        />
-        <Route
-          path="/savings/:assetId"
-          element={
-            <ModuleGate module="savings">
-              <Shell tab="savings">
-                <HoldingPage />
-              </Shell>
-            </ModuleGate>
-          }
-        />
-        <Route
-          path="/installments"
-          element={
-            <ModuleGate module="installments">
-              <Shell tab="installments">
-                <InstallmentsLayout />
-              </Shell>
-            </ModuleGate>
-          }
-        >
-          <Route index element={<InstallmentsOverviewPage />} />
-          <Route path="expenses" element={<InstallmentsExpensesPage />} />
-          <Route path="income" element={<InstallmentsIncomePage />} />
-          <Route path="loans" element={<InstallmentsLoansPage />} />
-        </Route>
-        <Route
-          path="/settings"
-          element={
-            <Shell tab="settings">
-              <SettingsPage />
-            </Shell>
-          }
-        />
-        <Route path="*" element={<HomeRedirect />} />
-      </Routes>
+      <AppTree />
     </HashRouter>
+  )
+}
+
+/** Onboarding is a full-window first run — never stacked over the live shell. */
+function AppTree(): JSX.Element {
+  const { prefs } = usePreferences()
+  if (!prefs.onboardingCompleted) return <OnboardingWizard />
+
+  return (
+    <Routes>
+      <Route path="/" element={<HomeRedirect />} />
+      <Route
+        path="/savings"
+        element={
+          <ModuleGate module="savings">
+            <Shell tab="savings">
+              <SavingsListPage />
+            </Shell>
+          </ModuleGate>
+        }
+      />
+      <Route
+        path="/savings/:assetId"
+        element={
+          <ModuleGate module="savings">
+            <Shell tab="savings">
+              <HoldingPage />
+            </Shell>
+          </ModuleGate>
+        }
+      />
+      <Route
+        path="/installments"
+        element={
+          <ModuleGate module="installments">
+            <Shell tab="installments">
+              <InstallmentsLayout />
+            </Shell>
+          </ModuleGate>
+        }
+      >
+        <Route index element={<InstallmentsOverviewPage />} />
+        <Route path="expenses" element={<InstallmentsExpensesPage />} />
+        <Route path="income" element={<InstallmentsIncomePage />} />
+        <Route path="loans" element={<InstallmentsLoansPage />} />
+      </Route>
+      <Route
+        path="/settings"
+        element={
+          <Shell tab="settings">
+            <SettingsPage />
+          </Shell>
+        }
+      />
+      <Route path="*" element={<HomeRedirect />} />
+    </Routes>
   )
 }
 
@@ -246,13 +255,14 @@ function Shell({ children, tab }: { children: ReactNode; tab: Tab }): JSX.Elemen
         onOpenSettings={() => navigate('/settings')}
         collapsed={railCollapsed}
         onToggleCollapsed={() => setRailCollapsed((v) => !v)}
+        asOf={freshnessAsOf}
       />
 
       <div className="flex min-h-screen min-w-0 flex-1 flex-col">
         {!onHoldingPage ? (
           <header
             data-testid="app-sticky-header"
-            className="sticky-frost sticky top-0 z-30 border-b border-[var(--line)] md:pt-1"
+            className="app-region-drag sticky-frost sticky top-0 z-30 border-b border-[var(--line)] md:pt-1"
           >
             <div className="px-4 py-3 md:px-6 lg:px-8 xl:px-10">
               {tab === 'installments' ? (

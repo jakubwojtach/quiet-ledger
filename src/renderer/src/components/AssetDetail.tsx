@@ -37,6 +37,26 @@ export function AssetDetail({
   const { data: dashboard } = useDashboard()
   const { t, localeTag } = useLocale()
 
+  const rootRef = useRef<HTMLDivElement>(null)
+  const stickyRef = useRef<HTMLDivElement>(null)
+
+  const stickyKey = data
+    ? `${data.asset.id}:${data.plnValueMinor}:${data.lastUpdated ?? ''}:${data.gainPlnMinor ?? ''}:${data.gainPercent ?? ''}`
+    : 'empty'
+
+  useLayoutEffect(() => {
+    const sticky = stickyRef.current
+    const root = rootRef.current
+    if (!sticky || !root) return
+    const sync = (): void => {
+      root.style.setProperty('--holding-sticky-h', `${sticky.offsetHeight}px`)
+    }
+    sync()
+    const ro = new ResizeObserver(sync)
+    ro.observe(sticky)
+    return () => ro.disconnect()
+  }, [stickyKey])
+
   if (!data && isLoading) {
     return (
       <div className="animate-pulse space-y-4" data-testid="asset-detail-loading">
@@ -86,22 +106,6 @@ export function AssetDetail({
         ? t('detail.askingPrice')
         : null
 
-  const rootRef = useRef<HTMLDivElement>(null)
-  const stickyRef = useRef<HTMLDivElement>(null)
-
-  useLayoutEffect(() => {
-    const sticky = stickyRef.current
-    const root = rootRef.current
-    if (!sticky || !root) return
-    const sync = (): void => {
-      root.style.setProperty('--holding-sticky-h', `${sticky.offsetHeight}px`)
-    }
-    sync()
-    const ro = new ResizeObserver(sync)
-    ro.observe(sticky)
-    return () => ro.disconnect()
-  }, [asset.id, data.plnValueMinor, gainChip, valuedLabel])
-
   return (
     <div
       ref={rootRef}
@@ -112,7 +116,7 @@ export function AssetDetail({
       <div
         ref={stickyRef}
         data-testid="holding-sticky-bar"
-        className="sticky-frost sticky top-0 z-30 -mx-4 -mt-6 space-y-3 border-b border-[var(--line)] px-4 pt-2.5 pb-3 md:-mx-6 md:px-6 lg:-mx-8 lg:px-8 xl:-mx-10 xl:px-10"
+        className="app-region-drag sticky-frost sticky top-0 z-30 -mx-4 -mt-6 space-y-3 border-b border-[var(--line)] px-4 pt-2.5 pb-3 md:-mx-6 md:px-6 lg:-mx-8 lg:px-8 xl:-mx-10 xl:px-10"
       >
         <div className="flex flex-wrap items-center gap-2">
           <nav className="flex min-w-0 items-center gap-2 text-[13px] font-medium text-[var(--ink-3)]">

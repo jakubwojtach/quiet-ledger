@@ -58,7 +58,8 @@ export function AppRail({
   settingsActive,
   onOpenSettings,
   collapsed,
-  onToggleCollapsed
+  onToggleCollapsed,
+  asOf
 }: {
   nav: RailNavItem[]
   summary?: ReactNode
@@ -70,9 +71,12 @@ export function AppRail({
   onOpenSettings: () => void
   collapsed: boolean
   onToggleCollapsed: () => void
+  /** ISO timestamp or YYYY-MM-DD — shown instead of a redundant app title */
+  asOf?: string | null
 }): JSX.Element {
-  const { t } = useLocale()
+  const { t, localeTag } = useLocale()
   const expandLabel = collapsed ? t('rail.expand') : t('rail.collapse')
+  const { isToday, dateLabel, weekday } = formatRailDate(asOf, localeTag)
 
   return (
     <aside
@@ -80,26 +84,34 @@ export function AppRail({
       data-collapsed={collapsed ? 'true' : 'false'}
       className={cn(
         'surface-rail flex w-full shrink-0 flex-col border-b border-[var(--line)] transition-[width] duration-200 md:border-b-0',
-        'md:sticky md:top-0 md:h-dvh md:max-h-dvh md:pt-8',
+        'md:sticky md:top-0 md:h-dvh md:max-h-dvh',
         // Expanded: clip period list. Collapsed: visible so hover tips aren't clipped.
         collapsed ? 'md:w-14 md:overflow-visible' : 'md:w-[208px] md:overflow-hidden min-[1360px]:md:w-[232px]',
         className
       )}
     >
-      {/* Top: brand when expanded; traffic-light clearance only when collapsed */}
+      {/* Traffic-light clearance + window drag (hiddenInset has no native titlebar drag) */}
+      <div className="app-region-drag hidden h-8 shrink-0 md:block" aria-hidden />
+
+      {/* Date context (not a second "Savings" label) */}
       {!collapsed ? (
-        <div className="flex min-h-10 shrink-0 items-center border-b border-[var(--line)] px-3">
+        <div
+          className="app-region-drag flex min-h-10 shrink-0 flex-col justify-center gap-0.5 border-b border-[var(--line)] px-3 py-2"
+          data-testid="rail-date"
+        >
           <p className="hidden text-[10px] font-semibold tracking-[0.16em] text-[var(--ink-3)] uppercase md:block">
-            {t('app.name')}
+            {isToday ? t('rail.today') : t('rail.asOf')}
+            {weekday ? ` · ${weekday}` : ''}
+          </p>
+          <p className="hidden text-[13px] leading-4 font-medium tracking-[-0.01em] text-[var(--ink)] md:block">
+            <Sensitive placeholder={MASK.date}>{dateLabel}</Sensitive>
           </p>
         </div>
-      ) : (
-        <div className="h-2 shrink-0 md:h-3" aria-hidden />
-      )}
+      ) : null}
 
       <div
         className={cn(
-          'flex min-h-0 flex-1 flex-col gap-1 p-1.5',
+          'app-region-no-drag flex min-h-0 flex-1 flex-col gap-1 p-1.5',
           collapsed
             ? 'md:items-center md:gap-1 md:overflow-visible md:px-1.5 md:pt-1'
             : 'overflow-y-auto md:gap-2 md:p-2'
@@ -203,7 +215,7 @@ export function AppRail({
       {/* Footer: sidebar toggle above settings */}
       <div
         className={cn(
-          'mt-auto flex shrink-0 flex-col gap-1 border-t border-[var(--line)] p-1.5',
+          'app-region-no-drag mt-auto flex shrink-0 flex-col gap-1 border-t border-[var(--line)] p-1.5',
           collapsed ? 'items-center' : 'md:p-2'
         )}
       >
@@ -258,6 +270,35 @@ export function AppRail({
       </div>
     </aside>
   )
+}
+
+function formatRailDate(
+  asOf: string | null | undefined,
+  localeTag: string
+): { isToday: boolean; dateLabel: string; weekday: string } {
+  const now = new Date()
+  const todayKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
+  let source = now
+  let isToday = true
+
+  if (asOf) {
+    const parsed = new Date(asOf.includes('T') ? asOf : `${asOf}T12:00:00`)
+    if (!Number.isNaN(parsed.getTime())) {
+      source = parsed
+      const key = `${parsed.getFullYear()}-${String(parsed.getMonth() + 1).padStart(2, '0')}-${String(parsed.getDate()).padStart(2, '0')}`
+      isToday = key === todayKey
+    }
+  }
+
+  return {
+    isToday,
+    weekday: source.toLocaleDateString(localeTag, { weekday: 'short' }),
+    dateLabel: source.toLocaleDateString(localeTag, {
+      day: 'numeric',
+      month: 'short',
+      year: 'numeric'
+    })
+  }
 }
 
 export function YtdSummaryCard({

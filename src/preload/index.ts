@@ -30,13 +30,19 @@ import type {
   ValuedLot
 } from '../shared/types'
 
+/**
+ * Validate in the preload, but send the *original* payload.
+ * Main re-parses and applies Zod transforms (e.g. PLN major → grosze) once.
+ * Sending the already-transformed value used to multiply money by 100 twice.
+ */
 function invokeValidated<T>(
   channel: keyof typeof IpcRequestSchemas,
   payload?: unknown
 ): Promise<T> {
   const schema = IpcRequestSchemas[channel]
-  const parsed = schema.parse(payload ?? {})
-  return ipcRenderer.invoke(channel, parsed) as Promise<T>
+  const raw = payload ?? {}
+  schema.parse(raw)
+  return ipcRenderer.invoke(channel, raw) as Promise<T>
 }
 
 const api = {

@@ -145,6 +145,26 @@ export function SavingsDashboard({
 
   const periodLabel = t(`period.${period}`)
 
+  const stickyRef = useRef<HTMLElement>(null)
+
+  useLayoutEffect(() => {
+    const sticky = stickyRef.current
+    if (!sticky) return
+    const header = document.querySelector<HTMLElement>('[data-testid="app-sticky-header"]')
+    const sync = (): void => {
+      const h = header?.offsetHeight ?? 0
+      sticky.style.top = `${h}px`
+    }
+    sync()
+    const ro = header ? new ResizeObserver(sync) : null
+    if (header && ro) ro.observe(header)
+    window.addEventListener('resize', sync)
+    return () => {
+      ro?.disconnect()
+      window.removeEventListener('resize', sync)
+    }
+  }, [])
+
   if (isLoading) {
     return (
       <div className="animate-pulse space-y-4" data-testid="savings-loading">
@@ -181,32 +201,12 @@ export function SavingsDashboard({
     { id: 'all', label: t('period.all') }
   ]
 
-  const stickyRef = useRef<HTMLElement>(null)
-
-  useLayoutEffect(() => {
-    const sticky = stickyRef.current
-    if (!sticky) return
-    const header = document.querySelector<HTMLElement>('[data-testid="app-sticky-header"]')
-    const sync = (): void => {
-      const h = header?.offsetHeight ?? 0
-      sticky.style.top = `${h}px`
-    }
-    sync()
-    const ro = header ? new ResizeObserver(sync) : null
-    if (header && ro) ro.observe(header)
-    window.addEventListener('resize', sync)
-    return () => {
-      ro?.disconnect()
-      window.removeEventListener('resize', sync)
-    }
-  }, [])
-
   return (
     <div className="flex w-full min-w-0 flex-col gap-4" data-testid="savings-view">
       <section
         ref={stickyRef}
         data-testid="net-worth-hero"
-        className="sticky-frost sticky z-20 -mx-4 -mt-6 space-y-3 border-b border-[var(--line)] px-4 pt-3 pb-3 md:-mx-6 md:px-6 lg:-mx-8 lg:px-8 xl:-mx-10 xl:px-10"
+        className="app-region-drag sticky-frost sticky z-20 -mx-4 -mt-6 space-y-3 border-b border-[var(--line)] px-4 pt-3 pb-3 md:-mx-6 md:px-6 lg:-mx-8 lg:px-8 xl:-mx-10 xl:px-10"
       >
         <div className="text-[12px] leading-4 font-medium text-[var(--ink-3)]">
           {t('dashboard.netWorth')} ·{' '}
