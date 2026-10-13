@@ -21,11 +21,16 @@ export async function buildMonthSummary(month: string): Promise<MonthSummary> {
     if (stale) fxStale = true
   }
 
+  let duePlnMinor = 0
   const byCategory = new Map<string, { name: string; amount: number }>()
   for (const expense of expenses) {
     const { plnMinor, stale } = await convertToPlnMinor(expense.amountMinor, expense.currency)
-    expensesPlnMinor += plnMinor
     if (stale) fxStale = true
+    if (expense.status === 'due') {
+      duePlnMinor += plnMinor
+      continue
+    }
+    expensesPlnMinor += plnMinor
     const prev = byCategory.get(expense.categoryId) ?? {
       name: expense.categoryName,
       amount: 0
@@ -53,6 +58,7 @@ export async function buildMonthSummary(month: string): Promise<MonthSummary> {
     month,
     incomePlnMinor,
     expensesPlnMinor,
+    duePlnMinor,
     installmentsPlnMinor,
     cashflowPlnMinor: incomePlnMinor - expensesPlnMinor - installmentsPlnMinor,
     expensesByCategory,

@@ -230,17 +230,23 @@ export interface ExpenseCategory {
   sortOrder: number
 }
 
+export type ExpenseStatus = 'due' | 'paid'
+
 export interface ExpenseEntry {
   id: string
   categoryId: string
   categoryName: string
-  /** Calendar date YYYY-MM-DD */
+  /** Calendar date YYYY-MM-DD — spend date when paid; planned month anchor when due */
   date: string
   amountMinor: MinorUnits
   currency: CurrencyCode
   note: string | null
   /** Optional link to a liability installment payment */
   liabilityId: string | null
+  /** due = still to pay (excluded from cashflow totals); paid = spent */
+  status: ExpenseStatus
+  /** Optional due date; falls back to `date` in the UI when null */
+  dueDate: string | null
   createdAt: string
 }
 
@@ -254,7 +260,10 @@ export interface CategorySpend {
 export interface MonthSummary {
   month: string
   incomePlnMinor: MinorUnits
+  /** Paid expenses only — what left the account */
   expensesPlnMinor: MinorUnits
+  /** Due expenses still to pay (not in cashflow) */
+  duePlnMinor: MinorUnits
   /** Sum of liability monthly payments (cashflow sketch) */
   installmentsPlnMinor: MinorUnits
   /** income − expenses − installments */

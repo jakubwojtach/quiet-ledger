@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState, type FormEvent, type JSX } from 'react'
 import { minorToMajor } from '@shared/money'
-import type { ExpenseEntry, Liability } from '@shared/types'
+import type { ExpenseEntry, ExpenseStatus, Liability } from '@shared/types'
 import { useCreateExpense, useExpenseCategories, useUpdateExpense } from '@renderer/hooks/useNetWorth'
+import { useLocale } from '@renderer/lib/i18n/locale'
 import { Button } from '@renderer/components/ui/button'
 import { Input } from '@renderer/components/ui/input'
 import { Label } from '@renderer/components/ui/label'
@@ -15,6 +16,7 @@ import {
   SheetHeader,
   SheetTitle
 } from '@renderer/components/ui/sheet'
+import { cn } from '@renderer/lib/utils'
 
 interface ExpenseFormDialogProps {
   open: boolean
@@ -23,6 +25,7 @@ interface ExpenseFormDialogProps {
   defaultDate: string
   liabilities: Liability[]
   expense?: ExpenseEntry | null
+  defaultStatus?: ExpenseStatus
 }
 
 export function ExpenseFormDialog({
@@ -31,8 +34,10 @@ export function ExpenseFormDialog({
   month,
   defaultDate,
   liabilities,
-  expense = null
+  expense = null,
+  defaultStatus = 'paid'
 }: ExpenseFormDialogProps): JSX.Element {
+  const { t } = useLocale()
   const createExpense = useCreateExpense(month)
   const updateExpense = useUpdateExpense(month)
   const { data: categories } = useExpenseCategories()
@@ -42,6 +47,8 @@ export function ExpenseFormDialog({
   const [categoryId, setCategoryId] = useState('')
   const [date, setDate] = useState(defaultDate)
   const [liabilityId, setLiabilityId] = useState('')
+  const [status, setStatus] = useState<ExpenseStatus>(defaultStatus)
+  const [dueDate, setDueDate] = useState('')
   const [error, setError] = useState<string | null>(null)
 
   const resolvedCategoryId = useMemo(() => {
@@ -58,6 +65,8 @@ export function ExpenseFormDialog({
       setCategoryId(expense.categoryId)
       setDate(expense.date)
       setLiabilityId(expense.liabilityId ?? '')
+      setStatus(expense.status)
+      setDueDate(expense.dueDate ?? '')
       return
     }
     setAmount('')
@@ -65,7 +74,9 @@ export function ExpenseFormDialog({
     setCategoryId('')
     setDate(defaultDate)
     setLiabilityId('')
-  }, [open, defaultDate, expense])
+    setStatus(defaultStatus)
+    setDueDate(defaultStatus === 'due' ? defaultDate : '')
+  }, [open, defaultDate, expense, defaultStatus])
 
   const saving = createExpense.isPending || updateExpense.isPending
 
@@ -74,11 +85,11 @@ export function ExpenseFormDialog({
     setError(null)
     const major = Number(amount.replace(',', '.'))
     if (!Number.isFinite(major) || major <= 0) {
-      setError('Enter a positive expense amount.')
+      setError(t('expense.errorAmount'))
       return
     }
     if (!resolvedCategoryId) {
-      setError('Pick a category.')
+      setError(t('expense.errorCategory'))
       return
     }
     try {
@@ -88,7 +99,9 @@ export function ExpenseFormDialog({
         amount: major,
         currency: 'PLN' as const,
         note: note.trim() || null,
-        liabilityId: liabilityId || null
+        liabilityId: liabilityId || null,
+        status,
+        dueDate: status === 'due' ? dueDate || date : null
       }
       if (expense) {
         await updateExpense.mutateAsync({ id: expense.id, ...payload })
@@ -105,18 +118,41 @@ export function ExpenseFormDialog({
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent data-testid="expense-form-dialog">
         <SheetHeader>
-          <SheetTitle>{editing ? 'Edit expense' : 'Add expense'}</SheetTitle>
+          <SheetTitle>{editing ? t('expense.editTitle') : t('expense.addTitle')}</SheetTitle>
           <SheetDescription>
-            {editing
-              ? 'Update this spending line.'
-              : `Food, transport, and other spending for ${month}.`}
+            {editing ? t('expense.editHint') : t('expense.addHint', { month })}
           </SheetDescription>
         </SheetHeader>
         <form className="flex min-h-0 flex-1 flex-col" onSubmit={(e) => void onSubmit(e)}>
           <SheetBody className="grid content-start gap-3.5">
+            <div className="space-y-1.5">
+              <Label>{t('expense.status')}</Label>
+              <div
+                className="inline-flex rounded-[7px] border border-[var(--line)] bg-[var(--surface-2)] p-0.5"
+                role="group"
+                aria-label={t('expense.status')}
+              >
+                {(['paid', 'due'] as const).map((s) => (
+                  <button
+                    key={s}
+                    type="button"
+                    aria-pressed={status === s}
+                    onClick={() => setStatus(s)}
+                    className={cn(
+                      'h-7 rounded-[5px] px-3 text-[12px] font-medium transition-colors',
+                      status === s
+                        ? 'bg-[var(--surface-1)] text-[var(--ink)] shadow-sm'
+                        : 'text-[var(--ink-3)] hover:text-[var(--ink)]'
+                    )}
+                  >
+                    {s === 'paid' ? t('expense.statusPaid') : t('expense.statusDue')}
+                  </button>
+                ))}
+              </div>
+            </div>
             <div className="grid gap-3.5 sm:grid-cols-2">
               <div className="space-y-1.5">
-                <Label htmlFor="exp-date">Date</Label>
+                <Label htmlFor="exp-date">{t('expense.date')}</Label>
                 <Input
                   id="exp-date"
                   type="date"
@@ -125,7 +161,7 @@ export function ExpenseFormDialog({
                 />
               </div>
               <div className="space-y-1.5">
-                <Label htmlFor="exp-amount">Amount (PLN)</Label>
+                <Label htmlFor="exp-amount">{t('expense.amount')}</Label>
                 <Input
                   id="exp-amount"
                   value={amount}
@@ -134,8 +170,19 @@ export function ExpenseFormDialog({
                 />
               </div>
             </div>
+            {status === 'due' ? (
+              <div className="space-y-1.5">
+                <Label htmlFor="exp-due">{t('expense.dueDate')}</Label>
+                <Input
+                  id="exp-due"
+                  type="date"
+                  value={dueDate || date}
+                  onChange={(e) => setDueDate(e.target.value)}
+                />
+              </div>
+            ) : null}
             <div className="space-y-1.5">
-              <Label htmlFor="exp-cat">Category</Label>
+              <Label htmlFor="exp-cat">{t('expense.category')}</Label>
               <NativeSelect
                 id="exp-cat"
                 value={resolvedCategoryId}
@@ -149,13 +196,13 @@ export function ExpenseFormDialog({
               </NativeSelect>
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="exp-liability">Link to installment (optional)</Label>
+              <Label htmlFor="exp-liability">{t('expense.linkInstallment')}</Label>
               <NativeSelect
                 id="exp-liability"
                 value={liabilityId}
                 onChange={(e) => setLiabilityId(e.target.value)}
               >
-                <option value="">None</option>
+                <option value="">{t('expense.linkNone')}</option>
                 {liabilities.map((l) => (
                   <option key={l.id} value={l.id}>
                     {l.name}
@@ -164,22 +211,26 @@ export function ExpenseFormDialog({
               </NativeSelect>
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="exp-note">Note</Label>
+              <Label htmlFor="exp-note">{t('expense.note')}</Label>
               <Input
                 id="exp-note"
                 value={note}
                 onChange={(e) => setNote(e.target.value)}
-                placeholder="Groceries, ticket…"
+                placeholder={t('expense.notePlaceholder')}
               />
             </div>
             {error ? <p className="text-[13px] text-[var(--loss)]">{error}</p> : null}
           </SheetBody>
           <SheetFooter>
             <Button type="button" variant="outline" size="sm" onClick={() => onOpenChange(false)}>
-              Cancel
+              {t('action.cancel')}
             </Button>
             <Button type="submit" size="sm" disabled={saving}>
-              {saving ? 'Saving…' : editing ? 'Save' : 'Add expense'}
+              {saving
+                ? t('action.saving')
+                : editing
+                  ? t('action.save')
+                  : t('action.addExpense')}
             </Button>
           </SheetFooter>
         </form>

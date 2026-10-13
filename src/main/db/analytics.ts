@@ -72,6 +72,7 @@ export function listCashflowHistory(limitMonths = 18): CashflowMonthPoint[] {
     .prepare(
       `SELECT substr(date, 1, 7) AS month, SUM(amount_minor) AS total
        FROM expense_entries
+       WHERE COALESCE(status, 'paid') = 'paid'
        GROUP BY month
        ORDER BY month DESC
        LIMIT ?`

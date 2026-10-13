@@ -87,13 +87,17 @@ export const getMonthSummaryRequestSchema = z.object({
   month: monthSchema
 })
 
+const expenseStatusSchema = z.enum(['due', 'paid']).default('paid')
+
 export const createExpenseRequestSchema = z.object({
   categoryId: z.string().uuid(),
   date: dateSchema,
   amount: moneyMajorToMinor,
   currency: currencySchema.default('PLN'),
   note: z.string().nullable().optional(),
-  liabilityId: z.string().uuid().nullable().optional()
+  liabilityId: z.string().uuid().nullable().optional(),
+  status: expenseStatusSchema,
+  dueDate: dateSchema.nullable().optional()
 })
 
 export const updateExpenseRequestSchema = createExpenseRequestSchema.extend({

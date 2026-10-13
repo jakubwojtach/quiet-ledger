@@ -60,6 +60,9 @@ CREATE TABLE IF NOT EXISTS expense_entries (
   currency TEXT NOT NULL DEFAULT 'PLN',
   note TEXT,
   liability_id TEXT REFERENCES liabilities(id) ON DELETE SET NULL,
+  -- 'due' | 'paid' (existing rows migrate to paid)
+  status TEXT NOT NULL DEFAULT 'paid' CHECK (status IN ('due', 'paid')),
+  due_date TEXT,
   created_at TEXT NOT NULL
 );
 

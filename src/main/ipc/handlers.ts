@@ -134,7 +134,9 @@ export function registerIpcHandlers(): void {
       amountMinor: input.amount,
       currency: input.currency,
       note: input.note,
-      liabilityId: input.liabilityId
+      liabilityId: input.liabilityId,
+      status: input.status,
+      dueDate: input.dueDate
     })
     emitLocalEvent('expense.created', { id: entry.id, date: entry.date })
     return entry
@@ -148,7 +150,9 @@ export function registerIpcHandlers(): void {
       amountMinor: input.amount,
       currency: input.currency,
       note: input.note,
-      liabilityId: input.liabilityId
+      liabilityId: input.liabilityId,
+      status: input.status,
+      dueDate: input.dueDate
     })
     emitLocalEvent('expense.updated', { id: entry.id, date: entry.date })
     return entry

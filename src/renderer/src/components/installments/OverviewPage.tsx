@@ -102,6 +102,17 @@ export function OverviewPage(): JSX.Element {
             </div>
           </div>
         </section>
+        {data.duePlnMinor > 0 ? (
+          <Link
+            to={withMonth('/installments/expenses', month)}
+            className="mt-3 inline-flex items-center gap-2 rounded-[10px] border border-[var(--line)] bg-[var(--surface-2)] px-3.5 py-2 text-[13px] text-[var(--ink-2)] transition-colors hover:border-[var(--line-strong)] hover:text-[var(--ink)]"
+            data-testid="still-to-pay-chip"
+          >
+            <span className="font-medium text-[var(--ink)]">{t('expense.stillToPay')}</span>
+            <MoneyAmount amountMinor={data.duePlnMinor} className="!text-[13px] font-medium" />
+            <span className="text-[var(--ink-3)]">· {t('action.open')}</span>
+          </Link>
+        ) : null}
       </FadeUp>
 
       <div className="grid min-w-0 gap-4 lg:grid-cols-[minmax(0,1fr)_360px] max-[1359px]:lg:grid-cols-[minmax(0,1fr)_320px]">

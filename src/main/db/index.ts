@@ -36,6 +36,7 @@ export function initDatabase(): Database.Database {
   db.pragma('foreign_keys = ON')
   db.exec(SCHEMA_SQL)
   ensureAssetColumns(db)
+  ensureExpenseColumns(db)
 
   const categoryCount = db.prepare('SELECT COUNT(*) AS c FROM expense_categories').get() as {
     c: number
@@ -68,6 +69,22 @@ function ensureAssetColumns(database: Database.Database): void {
   )
   for (const name of ['value_source', 'account']) {
     if (!cols.has(name)) database.exec(`ALTER TABLE assets ADD COLUMN ${name} TEXT`)
+  }
+}
+
+function ensureExpenseColumns(database: Database.Database): void {
+  const cols = new Set(
+    (database.prepare('PRAGMA table_info(expense_entries)').all() as { name: string }[]).map(
+      (c) => c.name
+    )
+  )
+  if (!cols.has('status')) {
+    database.exec(
+      `ALTER TABLE expense_entries ADD COLUMN status TEXT NOT NULL DEFAULT 'paid'`
+    )
+  }
+  if (!cols.has('due_date')) {
+    database.exec(`ALTER TABLE expense_entries ADD COLUMN due_date TEXT`)
   }
 }
 

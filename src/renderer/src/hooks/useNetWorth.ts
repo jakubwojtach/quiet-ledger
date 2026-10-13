@@ -174,10 +174,12 @@ export function useCreateExpense(month: string) {
         const summary = old as {
           expenses: ExpenseEntry[]
           expensesPlnMinor: number
+          duePlnMinor: number
           cashflowPlnMinor: number
           incomePlnMinor: number
           installmentsPlnMinor: number
         }
+        const status = input.status === 'due' ? 'due' : 'paid'
         const optimistic: ExpenseEntry = {
           id: `optimistic-${Date.now()}`,
           categoryId: input.categoryId,
@@ -187,13 +189,19 @@ export function useCreateExpense(month: string) {
           currency: input.currency ?? 'PLN',
           note: input.note ?? null,
           liabilityId: input.liabilityId ?? null,
+          status,
+          dueDate: input.dueDate ?? null,
           createdAt: new Date().toISOString()
         }
-        const expensesPlnMinor = summary.expensesPlnMinor + amountMinor
+        const expensesPlnMinor =
+          status === 'paid' ? summary.expensesPlnMinor + amountMinor : summary.expensesPlnMinor
+        const duePlnMinor =
+          status === 'due' ? (summary.duePlnMinor ?? 0) + amountMinor : (summary.duePlnMinor ?? 0)
         return {
           ...summary,
           expenses: [optimistic, ...summary.expenses],
           expensesPlnMinor,
+          duePlnMinor,
           cashflowPlnMinor:
             summary.incomePlnMinor - expensesPlnMinor - summary.installmentsPlnMinor
         }
