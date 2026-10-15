@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Quiet Ledger</title>
+    <meta
+      name="description"
+      content="Quiet Ledger — local-first personal net worth and cashflow for PLN. Desktop app. Your data stays on your machine."
+    />
+    <meta property="og:title" content="Quiet Ledger" />
+    <meta
+      property="og:description"
+      content="Local-first net worth & cashflow. PLN. No cloud account."
+    />
+    <meta property="og:image" content="./icon-1024.png" />
+    <link rel="icon" href="./icon.png" type="image/png" />
+    <link rel="preconnect" href="https://cdn.jsdelivr.net" />
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/geist@1.3.1/dist/fonts/geist-sans/style.min.css"
+    />
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/geist@1.3.1/dist/fonts/geist-mono/style.min.css"
+    />
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <div class="atmosphere" aria-hidden="true">
+      <div class="orb orb-a"></div>
+      <div class="orb orb-b"></div>
+      <div class="grain"></div>
+    </div>
+
+    <header class="top">
+      <a class="brand-mini" href="./" aria-label="Quiet Ledger home">
+        <img src="./icon.png" width="28" height="28" alt="" />
+        <span>Quiet Ledger</span>
+      </a>
+      <nav>
+        <a href="#features">Features</a>
+        <a href="#privacy">Privacy</a>
+        <a href="https://github.com/jakubwojtach/quiet-ledger">GitHub</a>
+      </nav>
+    </header>
+
+    <main>
+      <section class="hero">
+        <img class="hero-mark" src="./icon-1024.png" width="120" height="120" alt="" />
+        <h1 class="hero-name">Quiet Ledger</h1>
+        <p class="hero-line">
+          Local-first net worth and cashflow. Base currency PLN. No cloud account.
+        </p>
+        <div class="cta">
+          <a class="btn primary" href="https://github.com/jakubwojtach/quiet-ledger/releases">
+            Download
+          </a>
+          <a class="btn ghost" href="https://github.com/jakubwojtach/quiet-ledger">
+            View source
+          </a>
+        </div>
+        <p class="hero-meta">macOS today · Windows via CI releases</p>
+      </section>
+
+      <section id="features" class="band">
+        <h2>One composition for your money</h2>
+        <p class="support">
+          Savings holdings, installments, income and expenses — valued locally, with live market
+          comps when you want them.
+        </p>
+        <ul class="pillars">
+          <li>
+            <b>Holdings</b>
+            <span>ETFs, funds, cash, property, cars — paid vs worth in PLN.</span>
+          </li>
+          <li>
+            <b>Cashflow</b>
+            <span>Income, expenses, and loan installments in one monthly view.</span>
+          </li>
+          <li>
+            <b>Comps</b>
+            <span>Otodom for flats &amp; land, Otomoto for cars — median of similar listings.</span>
+          </li>
+        </ul>
+      </section>
+
+      <section id="privacy" class="band band-tight">
+        <h2>Your machine is the server</h2>
+        <p class="support">
+          SQLite on disk. Optional portal logins in OS secure storage. Nothing secret ships in the
+          installer.
+        </p>
+        <p class="path mono">
+          macOS · ~/Library/Application Support/quiet-ledger/<br />
+          Windows · %APPDATA%\quiet-ledger\
+        </p>
+      </section>
+    </main>
+
+    <footer class="foot">
+      <span>Quiet Ledger</span>
+      <a href="https://github.com/jakubwojtach/quiet-ledger">jakubwojtach/quiet-ledger</a>
+    </footer>
+
+    <script>
+      document.documentElement.classList.add('ready')
+    </script>
+  </body>
+</html>
