@@ -27,12 +27,6 @@
     <link rel="stylesheet" href="./styles.css" />
   </head>
   <body>
-    <div class="atmosphere" aria-hidden="true">
-      <div class="orb orb-a"></div>
-      <div class="orb orb-b"></div>
-      <div class="grain"></div>
-    </div>
-
     <header class="top">
       <a class="brand-mini" href="./" aria-label="Quiet Ledger home">
         <img src="./icon.png" width="28" height="28" alt="" />
@@ -46,41 +40,68 @@
     </header>
 
     <main>
-      <section class="hero">
-        <img class="hero-mark" src="./icon-1024.png" width="120" height="120" alt="" />
-        <h1 class="hero-name">Quiet Ledger</h1>
+      <section class="hero" aria-label="Quiet Ledger">
+        <div id="hero-lottie" class="hero-lottie" role="img" aria-label="Quiet Ledger"></div>
+
+        <svg
+          class="ql-handwrite"
+          viewBox="0 0 420 72"
+          aria-hidden="true"
+        >
+          <defs>
+            <mask id="ql-pen" maskUnits="userSpaceOnUse">
+              <rect class="ql-handwrite-pen" x="0" y="0" width="420" height="72" fill="white" />
+            </mask>
+          </defs>
+          <text
+            x="210"
+            y="52"
+            text-anchor="middle"
+            mask="url(#ql-pen)"
+            class="ql-handwrite-text"
+          >
+            Quiet Ledger
+          </text>
+        </svg>
+
         <p class="hero-line">
           Local-first net worth and cashflow. Base currency PLN. No cloud account.
         </p>
         <div class="cta">
-          <a class="btn primary" href="https://github.com/jakubwojtach/quiet-ledger/releases">
-            Download
+          <a
+            class="btn primary"
+            id="download-mac"
+            href="https://github.com/jakubwojtach/quiet-ledger/releases/latest/download/quiet-ledger-1.0.0.dmg"
+          >
+            Download for macOS
           </a>
-          <a class="btn ghost" href="https://github.com/jakubwojtach/quiet-ledger">
-            View source
+          <a class="btn ghost" href="https://github.com/jakubwojtach/quiet-ledger/releases/latest">
+            All releases
           </a>
         </div>
-        <p class="hero-meta">macOS today · Windows via CI releases</p>
+        <p class="hero-meta">
+          Apple Silicon DMG · Windows builds via Actions → Release builds
+        </p>
       </section>
 
       <section id="features" class="band">
-        <h2>One composition for your money</h2>
+        <h2>Holdings and cashflow, quietly</h2>
         <p class="support">
-          Savings holdings, installments, income and expenses — valued locally, with live market
-          comps when you want them.
+          The same composition as the app: savings, installments, and live comps when you turn them
+          on — all valued locally in PLN.
         </p>
         <ul class="pillars">
           <li>
             <b>Holdings</b>
-            <span>ETFs, funds, cash, property, cars — paid vs worth in PLN.</span>
+            <span>ETFs, funds, cash, property, cars — paid vs worth.</span>
           </li>
           <li>
             <b>Cashflow</b>
-            <span>Income, expenses, and loan installments in one monthly view.</span>
+            <span>Income, expenses, and loan installments by month.</span>
           </li>
           <li>
             <b>Comps</b>
-            <span>Otodom for flats &amp; land, Otomoto for cars — median of similar listings.</span>
+            <span>Otodom for flats &amp; land, Otomoto for cars.</span>
           </li>
         </ul>
       </section>
@@ -103,8 +124,26 @@
       <a href="https://github.com/jakubwojtach/quiet-ledger">jakubwojtach/quiet-ledger</a>
     </footer>
 
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/lottie-web/5.12.2/lottie.min.js"></script>
     <script>
-      document.documentElement.classList.add('ready')
+      ;(function () {
+        var el = document.getElementById('hero-lottie')
+        if (!el || !window.lottie) return
+        var anim = window.lottie.loadAnimation({
+          container: el,
+          renderer: 'svg',
+          loop: false,
+          autoplay: true,
+          path: './money-stack.json'
+        })
+        anim.addEventListener('complete', function () {
+          document.documentElement.classList.add('splash-done')
+        })
+        window.setTimeout(function () {
+          document.documentElement.classList.add('splash-done')
+        }, 4000)
+        document.documentElement.classList.add('ready')
+      })()
     </script>
   </body>
 </html>
