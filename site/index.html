@@ -15,7 +15,7 @@
     />
     <meta property="og:image" content="./icon-1024.png" />
     <link rel="icon" href="./icon.png" type="image/png" />
-    <link rel="preconnect" href="https://cdn.jsdelivr.net" />
+    <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin />
     <link
       rel="stylesheet"
       href="https://cdn.jsdelivr.net/npm/geist@1.3.1/dist/fonts/geist-sans/style.min.css"
@@ -27,15 +27,18 @@
     <link rel="stylesheet" href="./styles.css" />
   </head>
   <body>
+    <div class="atmosphere" aria-hidden="true"></div>
+
     <header class="top">
       <a class="brand-mini" href="./" aria-label="Quiet Ledger home">
         <img src="./icon.png" width="28" height="28" alt="" />
         <span>Quiet Ledger</span>
       </a>
       <nav>
-        <a href="#features">Features</a>
+        <a href="#product">Product</a>
         <a href="#privacy">Privacy</a>
         <a href="https://github.com/jakubwojtach/quiet-ledger">GitHub</a>
+        <a class="nav-dl" href="#download">Download</a>
       </nav>
     </header>
 
@@ -43,11 +46,7 @@
       <section class="hero" aria-label="Quiet Ledger">
         <div id="hero-lottie" class="hero-lottie" role="img" aria-label="Quiet Ledger"></div>
 
-        <svg
-          class="ql-handwrite"
-          viewBox="0 0 420 72"
-          aria-hidden="true"
-        >
+        <svg class="ql-handwrite" viewBox="0 0 420 72" aria-hidden="true">
           <defs>
             <mask id="ql-pen" maskUnits="userSpaceOnUse">
               <rect class="ql-handwrite-pen" x="0" y="0" width="420" height="72" fill="white" />
@@ -65,57 +64,169 @@
         </svg>
 
         <p class="hero-line">
-          Local-first net worth and cashflow. Base currency PLN. No cloud account.
+          Local-first net worth and cashflow for PLN. Holdings, installments, and live comps —
+          valued on your machine.
         </p>
-        <div class="cta">
+
+        <div class="cta" id="download">
           <a
             class="btn primary"
             id="download-mac"
             href="https://github.com/jakubwojtach/quiet-ledger/releases/latest/download/quiet-ledger-1.0.0.dmg"
           >
+            <span class="btn-icon" aria-hidden="true">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                <path
+                  d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.81-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M13 3.5c.73-.83 1.94-1.46 2.94-1.5.13 1.17-.34 2.35-1.04 3.19-.69.85-1.83 1.51-2.95 1.42-.15-1.15.41-2.35 1.05-3.11z"
+                />
+              </svg>
+            </span>
             Download for macOS
           </a>
-          <a class="btn ghost" href="https://github.com/jakubwojtach/quiet-ledger/releases/latest">
-            All releases
+          <a
+            class="btn secondary"
+            id="download-win"
+            href="https://github.com/jakubwojtach/quiet-ledger/releases/latest/download/quiet-ledger-1.0.0-setup.exe"
+          >
+            <span class="btn-icon" aria-hidden="true">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor">
+                <path
+                  d="M3 5.5 10.5 4.4v7.1H3V5.5zm0 13L10.5 19.7v-7.2H3v6zm8.3-13.2L21 3v8.5h-9.7V5.3zM12.3 19.8 21 21v-8.6h-8.7v7.4z"
+                />
+              </svg>
+            </span>
+            Download for Windows
           </a>
         </div>
         <p class="hero-meta">
-          Apple Silicon DMG · Windows builds via Actions → Release builds
+          <a href="https://github.com/jakubwojtach/quiet-ledger/releases/latest">v1.0.0</a>
+          · Apple Silicon DMG · Windows NSIS installer · free &amp; open source
         </p>
       </section>
 
-      <section id="features" class="band">
+      <section id="product" class="stage" aria-label="Product preview">
+        <div class="stage-glow" aria-hidden="true"></div>
+        <div class="window" aria-hidden="true">
+          <div class="window-chrome">
+            <span class="dot"></span>
+            <span class="dot"></span>
+            <span class="dot"></span>
+            <span class="window-title">Quiet Ledger</span>
+          </div>
+          <div class="window-body">
+            <aside class="rail">
+              <div class="rail-brand">
+                <img src="./icon.png" width="22" height="22" alt="" />
+                <span>Quiet Ledger</span>
+              </div>
+              <div class="rail-nav">
+                <span class="rail-item active">Savings</span>
+                <span class="rail-item">Cashflow</span>
+                <span class="rail-item">Settings</span>
+              </div>
+              <div class="rail-nw">
+                <span class="rail-label">Net worth</span>
+                <strong>842&nbsp;450 zł</strong>
+                <em class="gain">+4.2%</em>
+              </div>
+            </aside>
+            <div class="pane">
+              <header class="pane-head">
+                <div>
+                  <p class="eyebrow">Total</p>
+                  <p class="nw">842&nbsp;450,00 zł</p>
+                  <p class="delta gain">+34&nbsp;120 zł · +4.2% this year</p>
+                </div>
+                <div class="periods">
+                  <span>1M</span>
+                  <span>YTD</span>
+                  <span class="on">1Y</span>
+                  <span>All</span>
+                </div>
+              </header>
+              <div class="chart">
+                <svg viewBox="0 0 560 140" preserveAspectRatio="none">
+                  <defs>
+                    <linearGradient id="fill" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stop-color="oklch(0.74 0.12 250)" stop-opacity="0.35" />
+                      <stop offset="100%" stop-color="oklch(0.74 0.12 250)" stop-opacity="0" />
+                    </linearGradient>
+                  </defs>
+                  <path
+                    class="chart-area"
+                    d="M0 110 C40 105, 70 98, 100 92 C140 82, 170 88, 210 70 C250 52, 290 60, 330 48 C380 32, 420 40, 460 28 C500 16, 530 22, 560 18 L560 140 L0 140 Z"
+                    fill="url(#fill)"
+                  />
+                  <path
+                    class="chart-line"
+                    d="M0 110 C40 105, 70 98, 100 92 C140 82, 170 88, 210 70 C250 52, 290 60, 330 48 C380 32, 420 40, 460 28 C500 16, 530 22, 560 18"
+                    fill="none"
+                    stroke="oklch(0.74 0.12 250)"
+                    stroke-width="2.5"
+                  />
+                </svg>
+              </div>
+              <div class="comp">
+                <div class="comp-bar">
+                  <i style="--w: 42%"></i>
+                  <i style="--w: 28%"></i>
+                  <i style="--w: 18%"></i>
+                  <i style="--w: 12%"></i>
+                </div>
+                <ul class="holdings">
+                  <li><b>ETFs &amp; funds</b><span>354&nbsp;200 zł</span></li>
+                  <li><b>Property</b><span>236&nbsp;000 zł</span></li>
+                  <li><b>Cash</b><span>151&nbsp;800 zł</span></li>
+                  <li><b>Car</b><span>100&nbsp;450 zł</span></li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </div>
+        <p class="stage-caption">
+          Same composition as the app — savings, month cashflow, Otodom &amp; Otomoto comps when you
+          turn them on.
+        </p>
+      </section>
+
+      <section class="band" id="features">
         <h2>Holdings and cashflow, quietly</h2>
-        <p class="support">
-          The same composition as the app: savings, installments, and live comps when you turn them
-          on — all valued locally in PLN.
-        </p>
-        <ul class="pillars">
-          <li>
-            <b>Holdings</b>
-            <span>ETFs, funds, cash, property, cars — paid vs worth.</span>
-          </li>
-          <li>
-            <b>Cashflow</b>
-            <span>Income, expenses, and loan installments by month.</span>
-          </li>
-          <li>
-            <b>Comps</b>
-            <span>Otodom for flats &amp; land, Otomoto for cars.</span>
-          </li>
-        </ul>
+        <div class="pillars">
+          <article>
+            <h3>Holdings</h3>
+            <p>ETFs, funds, cash, property, cars — paid vs worth, with live market prices.</p>
+          </article>
+          <article>
+            <h3>Cashflow</h3>
+            <p>Income, expenses, and loan installments by month. See what’s left before payday.</p>
+          </article>
+          <article>
+            <h3>Comps</h3>
+            <p>Otodom for flats &amp; land, Otomoto for cars. Optional portal logins stay in OS keychain.</p>
+          </article>
+        </div>
       </section>
 
-      <section id="privacy" class="band band-tight">
-        <h2>Your machine is the server</h2>
-        <p class="support">
-          SQLite on disk. Optional portal logins in OS secure storage. Nothing secret ships in the
-          installer.
-        </p>
-        <p class="path mono">
-          macOS · ~/Library/Application Support/quiet-ledger/<br />
-          Windows · %APPDATA%\quiet-ledger\
-        </p>
+      <section id="privacy" class="band privacy">
+        <div class="privacy-copy">
+          <h2>Your machine is the server</h2>
+          <p>
+            SQLite on disk. No cloud account. Optional portal credentials live in OS secure storage —
+            nothing secret ships in the installer.
+          </p>
+          <p class="path mono">
+            macOS · ~/Library/Application Support/quiet-ledger/<br />
+            Windows · %APPDATA%\quiet-ledger\
+          </p>
+        </div>
+        <div class="vault" aria-hidden="true">
+          <div class="vault-ring"></div>
+          <div class="vault-card">
+            <span class="vault-dot"></span>
+            <strong>Local only</strong>
+            <span>encrypted at rest by your OS</span>
+          </div>
+        </div>
       </section>
     </main>
 
@@ -124,11 +235,21 @@
       <a href="https://github.com/jakubwojtach/quiet-ledger">jakubwojtach/quiet-ledger</a>
     </footer>
 
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/lottie-web/5.12.2/lottie.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/lottie-web@5.12.2/build/player/lottie_light.min.js"></script>
     <script>
       ;(function () {
         var el = document.getElementById('hero-lottie')
-        if (!el || !window.lottie) return
+        document.documentElement.classList.add('ready')
+
+        function reveal() {
+          document.documentElement.classList.add('splash-done')
+        }
+
+        if (!el || !window.lottie) {
+          reveal()
+          return
+        }
+
         var anim = window.lottie.loadAnimation({
           container: el,
           renderer: 'svg',
@@ -136,13 +257,12 @@
           autoplay: true,
           path: './money-stack.json'
         })
-        anim.addEventListener('complete', function () {
-          document.documentElement.classList.add('splash-done')
+        anim.addEventListener('DOMLoaded', function () {
+          el.classList.add('is-loaded')
         })
-        window.setTimeout(function () {
-          document.documentElement.classList.add('splash-done')
-        }, 4000)
-        document.documentElement.classList.add('ready')
+        anim.addEventListener('data_failed', reveal)
+        anim.addEventListener('complete', reveal)
+        window.setTimeout(reveal, 3200)
       })()
     </script>
   </body>
