@@ -104,14 +104,14 @@
         </p>
       </section>
 
-      <section id="product" class="stage" aria-label="Product preview">
+      <section id="product" class="stage" aria-label="Interactive product preview">
         <div class="stage-glow" aria-hidden="true"></div>
-        <div class="window" aria-hidden="true">
+        <div class="window" id="demo" role="application" aria-label="Quiet Ledger demo">
           <div class="window-chrome">
             <span class="dot"></span>
             <span class="dot"></span>
             <span class="dot"></span>
-            <span class="window-title">Quiet Ledger</span>
+            <span class="window-title">Quiet Ledger — try the demo</span>
           </div>
           <div class="window-body">
             <aside class="rail">
@@ -119,73 +119,139 @@
                 <img src="./icon.png" width="22" height="22" alt="" />
                 <span>Quiet Ledger</span>
               </div>
-              <div class="rail-nav">
-                <span class="rail-item active">Savings</span>
-                <span class="rail-item">Cashflow</span>
-                <span class="rail-item">Settings</span>
-              </div>
+              <nav class="rail-nav" aria-label="Demo navigation">
+                <button type="button" class="rail-item active" data-view="savings">Savings</button>
+                <button type="button" class="rail-item" data-view="cashflow">Cashflow</button>
+                <button type="button" class="rail-item" data-view="settings">Settings</button>
+              </nav>
               <div class="rail-nw">
                 <span class="rail-label">Net worth</span>
-                <strong>842&nbsp;450 zł</strong>
-                <em class="gain">+4.2%</em>
+                <strong id="rail-nw">842&nbsp;450 zł</strong>
+                <em class="gain" id="rail-delta">+4.2%</em>
               </div>
             </aside>
-            <div class="pane">
+
+            <div class="pane" data-panel="savings">
               <header class="pane-head">
                 <div>
                   <p class="eyebrow">Total</p>
-                  <p class="nw">842&nbsp;450,00 zł</p>
-                  <p class="delta gain">+34&nbsp;120 zł · +4.2% this year</p>
+                  <p class="nw" id="sav-nw">842&nbsp;450,00 zł</p>
+                  <p class="delta gain" id="sav-delta">+34&nbsp;120 zł · +4.2% this year</p>
                 </div>
-                <div class="periods">
-                  <span>1M</span>
-                  <span>YTD</span>
-                  <span class="on">1Y</span>
-                  <span>All</span>
+                <div class="periods" role="tablist" aria-label="Period">
+                  <button type="button" data-period="1m">1M</button>
+                  <button type="button" data-period="ytd">YTD</button>
+                  <button type="button" class="on" data-period="1y">1Y</button>
+                  <button type="button" data-period="all">All</button>
                 </div>
               </header>
               <div class="chart">
-                <svg viewBox="0 0 560 140" preserveAspectRatio="none">
+                <svg viewBox="0 0 560 140" preserveAspectRatio="none" aria-hidden="true">
                   <defs>
                     <linearGradient id="fill" x1="0" y1="0" x2="0" y2="1">
                       <stop offset="0%" stop-color="oklch(0.74 0.12 250)" stop-opacity="0.35" />
                       <stop offset="100%" stop-color="oklch(0.74 0.12 250)" stop-opacity="0" />
                     </linearGradient>
                   </defs>
+                  <path id="chart-area" class="chart-area" fill="url(#fill)" d="" />
                   <path
-                    class="chart-area"
-                    d="M0 110 C40 105, 70 98, 100 92 C140 82, 170 88, 210 70 C250 52, 290 60, 330 48 C380 32, 420 40, 460 28 C500 16, 530 22, 560 18 L560 140 L0 140 Z"
-                    fill="url(#fill)"
-                  />
-                  <path
+                    id="chart-line"
                     class="chart-line"
-                    d="M0 110 C40 105, 70 98, 100 92 C140 82, 170 88, 210 70 C250 52, 290 60, 330 48 C380 32, 420 40, 460 28 C500 16, 530 22, 560 18"
                     fill="none"
                     stroke="oklch(0.74 0.12 250)"
                     stroke-width="2.5"
+                    d=""
                   />
                 </svg>
               </div>
               <div class="comp">
-                <div class="comp-bar">
-                  <i style="--w: 42%"></i>
-                  <i style="--w: 28%"></i>
-                  <i style="--w: 18%"></i>
-                  <i style="--w: 12%"></i>
-                </div>
-                <ul class="holdings">
-                  <li><b>ETFs &amp; funds</b><span>354&nbsp;200 zł</span></li>
-                  <li><b>Property</b><span>236&nbsp;000 zł</span></li>
-                  <li><b>Cash</b><span>151&nbsp;800 zł</span></li>
-                  <li><b>Car</b><span>100&nbsp;450 zł</span></li>
-                </ul>
+                <div class="comp-bar" id="comp-bar"></div>
+                <ul class="holdings" id="holdings"></ul>
               </div>
+            </div>
+
+            <div class="pane hidden" data-panel="cashflow">
+              <header class="pane-head">
+                <div>
+                  <p class="eyebrow">October 2026</p>
+                  <p class="nw" id="cf-left">4&nbsp;820 zł</p>
+                  <p class="delta" id="cf-sub">left after installments</p>
+                </div>
+                <div class="month-nav">
+                  <button type="button" id="cf-prev" aria-label="Previous month">‹</button>
+                  <button type="button" id="cf-next" aria-label="Next month">›</button>
+                </div>
+              </header>
+              <div class="cf-strip">
+                <div>
+                  <span>Income</span>
+                  <strong id="cf-income" class="gain">18&nbsp;400 zł</strong>
+                </div>
+                <div>
+                  <span>Expenses</span>
+                  <strong id="cf-expense" class="loss">8&nbsp;960 zł</strong>
+                </div>
+                <div>
+                  <span>Installments</span>
+                  <strong id="cf-inst">4&nbsp;620 zł</strong>
+                </div>
+              </div>
+              <ul class="cf-list" id="cf-list"></ul>
+            </div>
+
+            <div class="pane hidden" data-panel="settings">
+              <header class="pane-head">
+                <div>
+                  <p class="eyebrow">Preferences</p>
+                  <p class="nw settings-title">Local &amp; quiet</p>
+                  <p class="delta">Demo toggles — nothing leaves this page.</p>
+                </div>
+              </header>
+              <ul class="settings-list">
+                <li>
+                  <div>
+                    <b>Base currency</b>
+                    <span>PLN</span>
+                  </div>
+                  <span class="chip">locked</span>
+                </li>
+                <li>
+                  <div>
+                    <b>Otodom comps</b>
+                    <span>Flats &amp; land estimates</span>
+                  </div>
+                  <button type="button" class="toggle on" data-toggle="otodom" aria-pressed="true">
+                    <i></i>
+                  </button>
+                </li>
+                <li>
+                  <div>
+                    <b>Otomoto comps</b>
+                    <span>Car market estimates</span>
+                  </div>
+                  <button type="button" class="toggle on" data-toggle="otomoto" aria-pressed="true">
+                    <i></i>
+                  </button>
+                </li>
+                <li>
+                  <div>
+                    <b>Hide amounts</b>
+                    <span>Blur numbers in the rail</span>
+                  </div>
+                  <button type="button" class="toggle" data-toggle="mask" aria-pressed="false">
+                    <i></i>
+                  </button>
+                </li>
+              </ul>
+              <p class="settings-note" id="settings-note">
+                Comps on — property &amp; car use live portal ranges when you sign in.
+              </p>
             </div>
           </div>
         </div>
         <p class="stage-caption">
-          Same composition as the app — savings, month cashflow, Otodom &amp; Otomoto comps when you
-          turn them on.
+          Click around — Savings periods, Cashflow months, Settings toggles. Same bones as the
+          desktop app.
         </p>
       </section>
 
@@ -247,22 +313,233 @@
 
         if (!el || !window.lottie) {
           reveal()
-          return
+        } else {
+          var anim = window.lottie.loadAnimation({
+            container: el,
+            renderer: 'svg',
+            loop: false,
+            autoplay: true,
+            path: './money-stack.json'
+          })
+          anim.addEventListener('DOMLoaded', function () {
+            el.classList.add('is-loaded')
+          })
+          anim.addEventListener('data_failed', reveal)
+          anim.addEventListener('complete', reveal)
+          window.setTimeout(reveal, 3200)
         }
 
-        var anim = window.lottie.loadAnimation({
-          container: el,
-          renderer: 'svg',
-          loop: false,
-          autoplay: true,
-          path: './money-stack.json'
+        /* —— Interactive demo —— */
+        var periods = {
+          '1m': {
+            nw: '842\u00a0450,00 zł',
+            delta: '+6\u00a0210 zł · +0.7% this month',
+            rail: '+0.7%',
+            line: 'M0 78 C50 76, 90 72, 140 68 C190 64, 240 70, 290 58 C340 46, 390 52, 440 40 C490 28, 530 34, 560 30',
+            area: 'M0 78 C50 76, 90 72, 140 68 C190 64, 240 70, 290 58 C340 46, 390 52, 440 40 C490 28, 530 34, 560 30 L560 140 L0 140 Z'
+          },
+          ytd: {
+            nw: '842\u00a0450,00 zł',
+            delta: '+28\u00a0900 zł · +3.6% YTD',
+            rail: '+3.6%',
+            line: 'M0 100 C45 96, 80 90, 120 88 C170 84, 210 70, 260 62 C310 54, 360 58, 410 42 C460 28, 510 34, 560 22',
+            area: 'M0 100 C45 96, 80 90, 120 88 C170 84, 210 70, 260 62 C310 54, 360 58, 410 42 C460 28, 510 34, 560 22 L560 140 L0 140 Z'
+          },
+          '1y': {
+            nw: '842\u00a0450,00 zł',
+            delta: '+34\u00a0120 zł · +4.2% this year',
+            rail: '+4.2%',
+            line: 'M0 110 C40 105, 70 98, 100 92 C140 82, 170 88, 210 70 C250 52, 290 60, 330 48 C380 32, 420 40, 460 28 C500 16, 530 22, 560 18',
+            area: 'M0 110 C40 105, 70 98, 100 92 C140 82, 170 88, 210 70 C250 52, 290 60, 330 48 C380 32, 420 40, 460 28 C500 16, 530 22, 560 18 L560 140 L0 140 Z'
+          },
+          all: {
+            nw: '842\u00a0450,00 zł',
+            delta: '+112\u00a0400 zł · +15.4% all time',
+            rail: '+15.4%',
+            line: 'M0 120 C60 118, 100 110, 150 100 C200 88, 250 95, 300 70 C350 48, 400 55, 450 35 C500 20, 530 24, 560 16',
+            area: 'M0 120 C60 118, 100 110, 150 100 C200 88, 250 95, 300 70 C350 48, 400 55, 450 35 C500 20, 530 24, 560 16 L560 140 L0 140 Z'
+          }
+        }
+
+        var holdings = [
+          { name: 'ETFs & funds', value: '354\u00a0200 zł', w: 42, c: 'var(--accent)' },
+          { name: 'Property', value: '236\u00a0000 zł', w: 28, c: 'oklch(0.74 0.1 195)' },
+          { name: 'Cash', value: '151\u00a0800 zł', w: 18, c: 'oklch(0.72 0.12 300)' },
+          { name: 'Car', value: '100\u00a0450 zł', w: 12, c: 'oklch(0.8 0.12 75)' }
+        ]
+
+        var months = [
+          {
+            label: 'August 2026',
+            left: '3\u00a0110 zł',
+            income: '18\u00a0400 zł',
+            expense: '10\u00a0670 zł',
+            inst: '4\u00a0620 zł',
+            rows: [
+              { t: 'Salary', a: '+14\u00a0200 zł', k: 'in' },
+              { t: 'Side project', a: '+4\u00a0200 zł', k: 'in' },
+              { t: 'Rent', a: '−3\u00a0200 zł', k: 'out' },
+              { t: 'Mortgage', a: '−2\u00a0840 zł', k: 'inst' },
+              { t: 'Car loan', a: '−1\u00a0780 zł', k: 'inst' },
+              { t: 'Groceries', a: '−1\u00a0940 zł', k: 'out' }
+            ]
+          },
+          {
+            label: 'September 2026',
+            left: '5\u00a0240 zł',
+            income: '18\u00a0400 zł',
+            expense: '8\u00a0540 zł',
+            inst: '4\u00a0620 zł',
+            rows: [
+              { t: 'Salary', a: '+14\u00a0200 zł', k: 'in' },
+              { t: 'Side project', a: '+4\u00a0200 zł', k: 'in' },
+              { t: 'Rent', a: '−3\u00a0200 zł', k: 'out' },
+              { t: 'Mortgage', a: '−2\u00a0840 zł', k: 'inst' },
+              { t: 'Car loan', a: '−1\u00a0780 zł', k: 'inst' },
+              { t: 'Utilities', a: '−680 zł', k: 'out' }
+            ]
+          },
+          {
+            label: 'October 2026',
+            left: '4\u00a0820 zł',
+            income: '18\u00a0400 zł',
+            expense: '8\u00a0960 zł',
+            inst: '4\u00a0620 zł',
+            rows: [
+              { t: 'Salary', a: '+14\u00a0200 zł', k: 'in' },
+              { t: 'Side project', a: '+4\u00a0200 zł', k: 'in' },
+              { t: 'Rent', a: '−3\u00a0200 zł', k: 'out' },
+              { t: 'Mortgage', a: '−2\u00a0840 zł', k: 'inst' },
+              { t: 'Car loan', a: '−1\u00a0780 zł', k: 'inst' },
+              { t: 'Insurance', a: '−1\u00a0120 zł', k: 'out' }
+            ]
+          }
+        ]
+
+        var demo = document.getElementById('demo')
+        if (!demo) return
+
+        var line = document.getElementById('chart-line')
+        var area = document.getElementById('chart-area')
+        var monthIdx = 2
+        var masked = false
+        var comps = { otodom: true, otomoto: true }
+
+        function renderHoldings() {
+          var bar = document.getElementById('comp-bar')
+          var list = document.getElementById('holdings')
+          bar.innerHTML = holdings
+            .map(function (h) {
+              return '<i style="--w:' + h.w + '%;background:' + h.c + '"></i>'
+            })
+            .join('')
+          list.innerHTML = holdings
+            .map(function (h) {
+              return '<li><b>' + h.name + '</b><span>' + h.value + '</span></li>'
+            })
+            .join('')
+        }
+
+        function setPeriod(id) {
+          var p = periods[id]
+          if (!p) return
+          document.querySelectorAll('.periods button').forEach(function (b) {
+            b.classList.toggle('on', b.getAttribute('data-period') === id)
+          })
+          document.getElementById('sav-nw').textContent = p.nw
+          document.getElementById('sav-delta').textContent = p.delta
+          document.getElementById('rail-delta').textContent = p.rail
+          line.setAttribute('d', p.line)
+          area.setAttribute('d', p.area)
+          line.classList.remove('redraw')
+          void line.offsetWidth
+          line.classList.add('redraw')
+        }
+
+        function renderMonth() {
+          var m = months[monthIdx]
+          demo.querySelector('[data-panel="cashflow"] .eyebrow').textContent = m.label
+          document.getElementById('cf-left').textContent = m.left
+          document.getElementById('cf-income').textContent = m.income
+          document.getElementById('cf-expense').textContent = m.expense
+          document.getElementById('cf-inst').textContent = m.inst
+          document.getElementById('cf-list').innerHTML = m.rows
+            .map(function (r) {
+              return (
+                '<li class="' +
+                r.k +
+                '"><b>' +
+                r.t +
+                '</b><span>' +
+                r.a +
+                '</span></li>'
+              )
+            })
+            .join('')
+        }
+
+        function setView(view) {
+          demo.querySelectorAll('.rail-item').forEach(function (b) {
+            b.classList.toggle('active', b.getAttribute('data-view') === view)
+          })
+          demo.querySelectorAll('.pane').forEach(function (p) {
+            p.classList.toggle('hidden', p.getAttribute('data-panel') !== view)
+          })
+        }
+
+        function updateSettingsNote() {
+          var note = document.getElementById('settings-note')
+          var parts = []
+          if (comps.otodom) parts.push('Otodom')
+          if (comps.otomoto) parts.push('Otomoto')
+          if (parts.length === 0) {
+            note.textContent = 'Comps off — holdings use manual values only.'
+          } else {
+            note.textContent =
+              parts.join(' + ') + ' on — property & car use live portal ranges when you sign in.'
+          }
+        }
+
+        demo.querySelectorAll('.rail-item').forEach(function (btn) {
+          btn.addEventListener('click', function () {
+            setView(btn.getAttribute('data-view'))
+          })
         })
-        anim.addEventListener('DOMLoaded', function () {
-          el.classList.add('is-loaded')
+
+        demo.querySelectorAll('.periods button').forEach(function (btn) {
+          btn.addEventListener('click', function () {
+            setPeriod(btn.getAttribute('data-period'))
+          })
         })
-        anim.addEventListener('data_failed', reveal)
-        anim.addEventListener('complete', reveal)
-        window.setTimeout(reveal, 3200)
+
+        document.getElementById('cf-prev').addEventListener('click', function () {
+          monthIdx = (monthIdx + months.length - 1) % months.length
+          renderMonth()
+        })
+        document.getElementById('cf-next').addEventListener('click', function () {
+          monthIdx = (monthIdx + 1) % months.length
+          renderMonth()
+        })
+
+        demo.querySelectorAll('.toggle').forEach(function (btn) {
+          btn.addEventListener('click', function () {
+            var key = btn.getAttribute('data-toggle')
+            var on = !btn.classList.contains('on')
+            btn.classList.toggle('on', on)
+            btn.setAttribute('aria-pressed', on ? 'true' : 'false')
+            if (key === 'mask') {
+              masked = on
+              demo.classList.toggle('masked', masked)
+            } else if (key === 'otodom' || key === 'otomoto') {
+              comps[key] = on
+              updateSettingsNote()
+            }
+          })
+        })
+
+        renderHoldings()
+        setPeriod('1y')
+        renderMonth()
       })()
     </script>
   </body>
