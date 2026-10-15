@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" data-theme="dark">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -24,6 +24,12 @@
       rel="stylesheet"
       href="https://cdn.jsdelivr.net/npm/geist@1.3.1/dist/fonts/geist-mono/style.min.css"
     />
+    <script>
+      try {
+        var t = localStorage.getItem('ql-site-theme')
+        if (t === 'light' || t === 'dark') document.documentElement.setAttribute('data-theme', t)
+      } catch (e) {}
+    </script>
     <link rel="stylesheet" href="./styles.css" />
   </head>
   <body>
@@ -38,6 +44,10 @@
         <a href="#product">Product</a>
         <a href="#privacy">Privacy</a>
         <a href="https://github.com/jakubwojtach/quiet-ledger">GitHub</a>
+        <button type="button" class="theme-btn" id="theme-toggle" aria-label="Toggle light and dark">
+          <span class="theme-sun" aria-hidden="true">☀</span>
+          <span class="theme-moon" aria-hidden="true">☾</span>
+        </button>
         <a class="nav-dl" href="#download">Download</a>
       </nav>
     </header>
@@ -71,36 +81,20 @@
         <div class="cta" id="download">
           <a
             class="btn primary"
-            id="download-mac"
             href="https://github.com/jakubwojtach/quiet-ledger/releases/latest/download/quiet-ledger-1.0.0.dmg"
           >
-            <span class="btn-icon" aria-hidden="true">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                <path
-                  d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.81-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M13 3.5c.73-.83 1.94-1.46 2.94-1.5.13 1.17-.34 2.35-1.04 3.19-.69.85-1.83 1.51-2.95 1.42-.15-1.15.41-2.35 1.05-3.11z"
-                />
-              </svg>
-            </span>
             Download for macOS
           </a>
           <a
             class="btn secondary"
-            id="download-win"
             href="https://github.com/jakubwojtach/quiet-ledger/releases/latest/download/quiet-ledger-1.0.0-setup.exe"
           >
-            <span class="btn-icon" aria-hidden="true">
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor">
-                <path
-                  d="M3 5.5 10.5 4.4v7.1H3V5.5zm0 13L10.5 19.7v-7.2H3v6zm8.3-13.2L21 3v8.5h-9.7V5.3zM12.3 19.8 21 21v-8.6h-8.7v7.4z"
-                />
-              </svg>
-            </span>
             Download for Windows
           </a>
         </div>
         <p class="hero-meta">
           <a href="https://github.com/jakubwojtach/quiet-ledger/releases/latest">v1.0.0</a>
-          · Apple Silicon DMG · Windows NSIS installer · free &amp; open source
+          · sample data in the demo below · not anyone’s real ledger
         </p>
       </section>
 
@@ -111,147 +105,209 @@
             <span class="dot"></span>
             <span class="dot"></span>
             <span class="dot"></span>
-            <span class="window-title">Quiet Ledger — try the demo</span>
+            <span class="window-title">Quiet Ledger</span>
           </div>
-          <div class="window-body">
+
+          <div class="shell">
             <aside class="rail">
-              <div class="rail-brand">
-                <img src="./icon.png" width="22" height="22" alt="" />
-                <span>Quiet Ledger</span>
+              <div class="rail-top">
+                <div class="rail-brand">
+                  <img src="./icon.png" width="22" height="22" alt="" />
+                  <div>
+                    <strong>Quiet Ledger</strong>
+                    <span>Today · Thu · 15 Oct 2026</span>
+                  </div>
+                </div>
+                <nav class="rail-nav" aria-label="Demo navigation">
+                  <button type="button" class="rail-item active" data-view="savings">
+                    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 7H5a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2Z"/><path d="M3 10h18"/></svg>
+                    Savings
+                  </button>
+                  <button type="button" class="rail-item" data-view="cashflow">
+                    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z"/><path d="M14 2v6h6"/><path d="M8 13h8"/><path d="M8 17h5"/></svg>
+                    Cashflow
+                  </button>
+                </nav>
               </div>
-              <nav class="rail-nav" aria-label="Demo navigation">
-                <button type="button" class="rail-item active" data-view="savings">Savings</button>
-                <button type="button" class="rail-item" data-view="cashflow">Cashflow</button>
-                <button type="button" class="rail-item" data-view="settings">Settings</button>
-              </nav>
-              <div class="rail-nw">
-                <span class="rail-label">Net worth</span>
-                <strong id="rail-nw">842&nbsp;450 zł</strong>
-                <em class="gain" id="rail-delta">+4.2%</em>
+              <div class="rail-bottom">
+                <button type="button" class="rail-item" data-view="settings">
+                  <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 1v2M12 21v2M4.2 4.2l1.4 1.4M18.4 18.4l1.4 1.4M1 12h2M21 12h2M4.2 19.8l1.4-1.4M18.4 5.6l1.4-1.4"/></svg>
+                  Settings
+                </button>
               </div>
             </aside>
 
-            <div class="pane" data-panel="savings">
-              <header class="pane-head">
-                <div>
-                  <p class="eyebrow">Total</p>
-                  <p class="nw" id="sav-nw">842&nbsp;450,00 zł</p>
-                  <p class="delta gain" id="sav-delta">+34&nbsp;120 zł · +4.2% this year</p>
+            <div class="main">
+              <!-- Savings -->
+              <div class="view" data-panel="savings">
+                <div class="ctx">
+                  <div class="ctx-left">
+                    <h2>Savings</h2>
+                    <span class="badge warn">Snapshot · Fresh</span>
+                  </div>
+                  <button type="button" class="icon-btn" id="privacy-btn" aria-label="Hide amounts" title="Hide amounts">
+                    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/></svg>
+                  </button>
                 </div>
-                <div class="periods" role="tablist" aria-label="Period">
-                  <button type="button" data-period="1m">1M</button>
-                  <button type="button" data-period="ytd">YTD</button>
-                  <button type="button" class="on" data-period="1y">1Y</button>
-                  <button type="button" data-period="all">All</button>
-                </div>
-              </header>
-              <div class="chart">
-                <svg viewBox="0 0 560 140" preserveAspectRatio="none" aria-hidden="true">
-                  <defs>
-                    <linearGradient id="fill" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stop-color="oklch(0.74 0.12 250)" stop-opacity="0.35" />
-                      <stop offset="100%" stop-color="oklch(0.74 0.12 250)" stop-opacity="0" />
-                    </linearGradient>
-                  </defs>
-                  <path id="chart-area" class="chart-area" fill="url(#fill)" d="" />
-                  <path
-                    id="chart-line"
-                    class="chart-line"
-                    fill="none"
-                    stroke="oklch(0.74 0.12 250)"
-                    stroke-width="2.5"
-                    d=""
-                  />
-                </svg>
-              </div>
-              <div class="comp">
-                <div class="comp-bar" id="comp-bar"></div>
-                <ul class="holdings" id="holdings"></ul>
-              </div>
-            </div>
 
-            <div class="pane hidden" data-panel="cashflow">
-              <header class="pane-head">
-                <div>
-                  <p class="eyebrow">October 2026</p>
-                  <p class="nw" id="cf-left">4&nbsp;820 zł</p>
-                  <p class="delta" id="cf-sub">left after installments</p>
-                </div>
-                <div class="month-nav">
-                  <button type="button" id="cf-prev" aria-label="Previous month">‹</button>
-                  <button type="button" id="cf-next" aria-label="Next month">›</button>
-                </div>
-              </header>
-              <div class="cf-strip">
-                <div>
-                  <span>Income</span>
-                  <strong id="cf-income" class="gain">18&nbsp;400 zł</strong>
-                </div>
-                <div>
-                  <span>Expenses</span>
-                  <strong id="cf-expense" class="loss">8&nbsp;960 zł</strong>
-                </div>
-                <div>
-                  <span>Installments</span>
-                  <strong id="cf-inst">4&nbsp;620 zł</strong>
-                </div>
-              </div>
-              <ul class="cf-list" id="cf-list"></ul>
-            </div>
+                <section class="hero-nw">
+                  <p class="meta">Net worth · 15 Oct 2026 · PLN</p>
+                  <div class="hero-row">
+                    <p class="amount sens" id="nw-amount">486&nbsp;240,50&nbsp;zł</p>
+                    <div class="hero-actions">
+                      <button type="button" class="btn-sm ghost">↻ Refresh</button>
+                      <button type="button" class="btn-sm primary">+ Add holding</button>
+                    </div>
+                  </div>
+                  <p class="delta sens" id="nw-delta">
+                    <span class="gain">+18&nbsp;420,00&nbsp;zł · +3.9%</span>
+                    <span class="muted">All · 8 snapshots</span>
+                  </p>
+                  <div class="stats-row">
+                    <span><b class="sens">5</b> assets</span>
+                    <span><b class="sens">1</b> liabilities · debt / assets <b class="sens">12%</b></span>
+                    <span>Tracked since <b>1 Mar 2026</b></span>
+                    <span class="spacer"></span>
+                    <div class="periods" role="tablist" aria-label="Period">
+                      <button type="button" data-period="1m">1M</button>
+                      <button type="button" data-period="ytd">YTD</button>
+                      <button type="button" data-period="1y">1Y</button>
+                      <button type="button" class="on" data-period="all">All</button>
+                    </div>
+                  </div>
+                </section>
 
-            <div class="pane hidden" data-panel="settings">
-              <header class="pane-head">
-                <div>
-                  <p class="eyebrow">Preferences</p>
-                  <p class="nw settings-title">Local &amp; quiet</p>
-                  <p class="delta">Demo toggles — nothing leaves this page.</p>
+                <section class="card">
+                  <div class="card-head">
+                    <h3>Net worth trend</h3>
+                    <span class="chip">8 of 8 snapshots</span>
+                    <span class="chip" id="period-chip">All · 8</span>
+                  </div>
+                  <div class="chart">
+                    <svg viewBox="0 0 640 150" preserveAspectRatio="none" aria-hidden="true">
+                      <defs>
+                        <linearGradient id="fill" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="0%" stop-color="var(--accent)" stop-opacity="0.28" />
+                          <stop offset="100%" stop-color="var(--accent)" stop-opacity="0" />
+                        </linearGradient>
+                      </defs>
+                      <path id="chart-area" fill="url(#fill)" d="" />
+                      <path
+                        id="chart-line"
+                        fill="none"
+                        stroke="var(--accent)"
+                        stroke-width="2.4"
+                        d=""
+                      />
+                    </svg>
+                  </div>
+                  <div class="timeline" id="timeline"></div>
+                </section>
+
+                <section class="card">
+                  <div class="card-head">
+                    <h3>Holdings <span class="count">5</span></h3>
+                    <div class="sort">
+                      <button type="button" class="on">Value</button>
+                      <button type="button">Gain</button>
+                      <button type="button">Name</button>
+                    </div>
+                  </div>
+                  <div class="table-head">
+                    <span>Holding</span>
+                    <span>Value</span>
+                    <span>Share</span>
+                    <span>Since purchase</span>
+                  </div>
+                  <ul class="holdings" id="holdings"></ul>
+                </section>
+              </div>
+
+              <!-- Cashflow -->
+              <div class="view hidden" data-panel="cashflow">
+                <div class="ctx">
+                  <div class="ctx-left">
+                    <h2>Cashflow</h2>
+                    <span class="badge">October 2026</span>
+                  </div>
+                  <div class="month-nav">
+                    <button type="button" id="cf-prev" aria-label="Previous month">‹</button>
+                    <button type="button" id="cf-next" aria-label="Next month">›</button>
+                  </div>
                 </div>
-              </header>
-              <ul class="settings-list">
-                <li>
-                  <div>
-                    <b>Base currency</b>
-                    <span>PLN</span>
+                <section class="hero-nw">
+                  <p class="meta">Left after installments</p>
+                  <p class="amount sens" id="cf-left">5&nbsp;140,00&nbsp;zł</p>
+                  <div class="cf-strip">
+                    <div>
+                      <span>Income</span>
+                      <strong class="gain sens" id="cf-income">16&nbsp;800 zł</strong>
+                    </div>
+                    <div>
+                      <span>Expenses</span>
+                      <strong class="loss sens" id="cf-expense">7&nbsp;420 zł</strong>
+                    </div>
+                    <div>
+                      <span>Installments</span>
+                      <strong class="sens" id="cf-inst">4&nbsp;240 zł</strong>
+                    </div>
                   </div>
-                  <span class="chip">locked</span>
-                </li>
-                <li>
-                  <div>
-                    <b>Otodom comps</b>
-                    <span>Flats &amp; land estimates</span>
+                </section>
+                <section class="card">
+                  <div class="card-head"><h3>This month</h3></div>
+                  <ul class="cf-list" id="cf-list"></ul>
+                </section>
+              </div>
+
+              <!-- Settings -->
+              <div class="view hidden" data-panel="settings">
+                <div class="ctx">
+                  <div class="ctx-left">
+                    <h2>Settings</h2>
                   </div>
-                  <button type="button" class="toggle on" data-toggle="otodom" aria-pressed="true">
-                    <i></i>
-                  </button>
-                </li>
-                <li>
-                  <div>
-                    <b>Otomoto comps</b>
-                    <span>Car market estimates</span>
+                </div>
+                <section class="card settings-card">
+                  <div class="setting-row">
+                    <div>
+                      <b>Appearance</b>
+                      <span>Same light / dark modes as the desktop app</span>
+                    </div>
+                    <div class="seg" id="theme-seg">
+                      <button type="button" data-theme-set="light">Light</button>
+                      <button type="button" data-theme-set="dark">Dark</button>
+                    </div>
                   </div>
-                  <button type="button" class="toggle on" data-toggle="otomoto" aria-pressed="true">
-                    <i></i>
-                  </button>
-                </li>
-                <li>
-                  <div>
-                    <b>Hide amounts</b>
-                    <span>Blur numbers in the rail</span>
+                  <div class="setting-row">
+                    <div>
+                      <b>Base currency</b>
+                      <span>PLN</span>
+                    </div>
+                    <span class="chip">locked</span>
                   </div>
-                  <button type="button" class="toggle" data-toggle="mask" aria-pressed="false">
-                    <i></i>
-                  </button>
-                </li>
-              </ul>
-              <p class="settings-note" id="settings-note">
-                Comps on — property &amp; car use live portal ranges when you sign in.
-              </p>
+                  <div class="setting-row">
+                    <div>
+                      <b>Otodom comps</b>
+                      <span>Sample: flats &amp; land estimates</span>
+                    </div>
+                    <button type="button" class="toggle on" data-toggle="otodom" aria-pressed="true"><i></i></button>
+                  </div>
+                  <div class="setting-row">
+                    <div>
+                      <b>Otomoto comps</b>
+                      <span>Sample: car market estimates</span>
+                    </div>
+                    <button type="button" class="toggle on" data-toggle="otomoto" aria-pressed="true"><i></i></button>
+                  </div>
+                  <p class="settings-note" id="settings-note">
+                    Demo only — fictional sample portfolio, not real account data.
+                  </p>
+                </section>
+              </div>
             </div>
           </div>
         </div>
         <p class="stage-caption">
-          Click around — Savings periods, Cashflow months, Settings toggles. Same bones as the
-          desktop app.
+          Click around the demo. Light/dark matches the app. Numbers are sample data.
         </p>
       </section>
 
@@ -268,7 +324,7 @@
           </article>
           <article>
             <h3>Comps</h3>
-            <p>Otodom for flats &amp; land, Otomoto for cars. Optional portal logins stay in OS keychain.</p>
+            <p>Otodom for flats &amp; land, Otomoto for cars. Portal logins stay in OS keychain.</p>
           </article>
         </div>
       </section>
@@ -302,245 +358,6 @@
     </footer>
 
     <script src="https://cdn.jsdelivr.net/npm/lottie-web@5.12.2/build/player/lottie_light.min.js"></script>
-    <script>
-      ;(function () {
-        var el = document.getElementById('hero-lottie')
-        document.documentElement.classList.add('ready')
-
-        function reveal() {
-          document.documentElement.classList.add('splash-done')
-        }
-
-        if (!el || !window.lottie) {
-          reveal()
-        } else {
-          var anim = window.lottie.loadAnimation({
-            container: el,
-            renderer: 'svg',
-            loop: false,
-            autoplay: true,
-            path: './money-stack.json'
-          })
-          anim.addEventListener('DOMLoaded', function () {
-            el.classList.add('is-loaded')
-          })
-          anim.addEventListener('data_failed', reveal)
-          anim.addEventListener('complete', reveal)
-          window.setTimeout(reveal, 3200)
-        }
-
-        /* —— Interactive demo —— */
-        var periods = {
-          '1m': {
-            nw: '842\u00a0450,00 zł',
-            delta: '+6\u00a0210 zł · +0.7% this month',
-            rail: '+0.7%',
-            line: 'M0 78 C50 76, 90 72, 140 68 C190 64, 240 70, 290 58 C340 46, 390 52, 440 40 C490 28, 530 34, 560 30',
-            area: 'M0 78 C50 76, 90 72, 140 68 C190 64, 240 70, 290 58 C340 46, 390 52, 440 40 C490 28, 530 34, 560 30 L560 140 L0 140 Z'
-          },
-          ytd: {
-            nw: '842\u00a0450,00 zł',
-            delta: '+28\u00a0900 zł · +3.6% YTD',
-            rail: '+3.6%',
-            line: 'M0 100 C45 96, 80 90, 120 88 C170 84, 210 70, 260 62 C310 54, 360 58, 410 42 C460 28, 510 34, 560 22',
-            area: 'M0 100 C45 96, 80 90, 120 88 C170 84, 210 70, 260 62 C310 54, 360 58, 410 42 C460 28, 510 34, 560 22 L560 140 L0 140 Z'
-          },
-          '1y': {
-            nw: '842\u00a0450,00 zł',
-            delta: '+34\u00a0120 zł · +4.2% this year',
-            rail: '+4.2%',
-            line: 'M0 110 C40 105, 70 98, 100 92 C140 82, 170 88, 210 70 C250 52, 290 60, 330 48 C380 32, 420 40, 460 28 C500 16, 530 22, 560 18',
-            area: 'M0 110 C40 105, 70 98, 100 92 C140 82, 170 88, 210 70 C250 52, 290 60, 330 48 C380 32, 420 40, 460 28 C500 16, 530 22, 560 18 L560 140 L0 140 Z'
-          },
-          all: {
-            nw: '842\u00a0450,00 zł',
-            delta: '+112\u00a0400 zł · +15.4% all time',
-            rail: '+15.4%',
-            line: 'M0 120 C60 118, 100 110, 150 100 C200 88, 250 95, 300 70 C350 48, 400 55, 450 35 C500 20, 530 24, 560 16',
-            area: 'M0 120 C60 118, 100 110, 150 100 C200 88, 250 95, 300 70 C350 48, 400 55, 450 35 C500 20, 530 24, 560 16 L560 140 L0 140 Z'
-          }
-        }
-
-        var holdings = [
-          { name: 'ETFs & funds', value: '354\u00a0200 zł', w: 42, c: 'var(--accent)' },
-          { name: 'Property', value: '236\u00a0000 zł', w: 28, c: 'oklch(0.74 0.1 195)' },
-          { name: 'Cash', value: '151\u00a0800 zł', w: 18, c: 'oklch(0.72 0.12 300)' },
-          { name: 'Car', value: '100\u00a0450 zł', w: 12, c: 'oklch(0.8 0.12 75)' }
-        ]
-
-        var months = [
-          {
-            label: 'August 2026',
-            left: '3\u00a0110 zł',
-            income: '18\u00a0400 zł',
-            expense: '10\u00a0670 zł',
-            inst: '4\u00a0620 zł',
-            rows: [
-              { t: 'Salary', a: '+14\u00a0200 zł', k: 'in' },
-              { t: 'Side project', a: '+4\u00a0200 zł', k: 'in' },
-              { t: 'Rent', a: '−3\u00a0200 zł', k: 'out' },
-              { t: 'Mortgage', a: '−2\u00a0840 zł', k: 'inst' },
-              { t: 'Car loan', a: '−1\u00a0780 zł', k: 'inst' },
-              { t: 'Groceries', a: '−1\u00a0940 zł', k: 'out' }
-            ]
-          },
-          {
-            label: 'September 2026',
-            left: '5\u00a0240 zł',
-            income: '18\u00a0400 zł',
-            expense: '8\u00a0540 zł',
-            inst: '4\u00a0620 zł',
-            rows: [
-              { t: 'Salary', a: '+14\u00a0200 zł', k: 'in' },
-              { t: 'Side project', a: '+4\u00a0200 zł', k: 'in' },
-              { t: 'Rent', a: '−3\u00a0200 zł', k: 'out' },
-              { t: 'Mortgage', a: '−2\u00a0840 zł', k: 'inst' },
-              { t: 'Car loan', a: '−1\u00a0780 zł', k: 'inst' },
-              { t: 'Utilities', a: '−680 zł', k: 'out' }
-            ]
-          },
-          {
-            label: 'October 2026',
-            left: '4\u00a0820 zł',
-            income: '18\u00a0400 zł',
-            expense: '8\u00a0960 zł',
-            inst: '4\u00a0620 zł',
-            rows: [
-              { t: 'Salary', a: '+14\u00a0200 zł', k: 'in' },
-              { t: 'Side project', a: '+4\u00a0200 zł', k: 'in' },
-              { t: 'Rent', a: '−3\u00a0200 zł', k: 'out' },
-              { t: 'Mortgage', a: '−2\u00a0840 zł', k: 'inst' },
-              { t: 'Car loan', a: '−1\u00a0780 zł', k: 'inst' },
-              { t: 'Insurance', a: '−1\u00a0120 zł', k: 'out' }
-            ]
-          }
-        ]
-
-        var demo = document.getElementById('demo')
-        if (!demo) return
-
-        var line = document.getElementById('chart-line')
-        var area = document.getElementById('chart-area')
-        var monthIdx = 2
-        var masked = false
-        var comps = { otodom: true, otomoto: true }
-
-        function renderHoldings() {
-          var bar = document.getElementById('comp-bar')
-          var list = document.getElementById('holdings')
-          bar.innerHTML = holdings
-            .map(function (h) {
-              return '<i style="--w:' + h.w + '%;background:' + h.c + '"></i>'
-            })
-            .join('')
-          list.innerHTML = holdings
-            .map(function (h) {
-              return '<li><b>' + h.name + '</b><span>' + h.value + '</span></li>'
-            })
-            .join('')
-        }
-
-        function setPeriod(id) {
-          var p = periods[id]
-          if (!p) return
-          document.querySelectorAll('.periods button').forEach(function (b) {
-            b.classList.toggle('on', b.getAttribute('data-period') === id)
-          })
-          document.getElementById('sav-nw').textContent = p.nw
-          document.getElementById('sav-delta').textContent = p.delta
-          document.getElementById('rail-delta').textContent = p.rail
-          line.setAttribute('d', p.line)
-          area.setAttribute('d', p.area)
-          line.classList.remove('redraw')
-          void line.offsetWidth
-          line.classList.add('redraw')
-        }
-
-        function renderMonth() {
-          var m = months[monthIdx]
-          demo.querySelector('[data-panel="cashflow"] .eyebrow').textContent = m.label
-          document.getElementById('cf-left').textContent = m.left
-          document.getElementById('cf-income').textContent = m.income
-          document.getElementById('cf-expense').textContent = m.expense
-          document.getElementById('cf-inst').textContent = m.inst
-          document.getElementById('cf-list').innerHTML = m.rows
-            .map(function (r) {
-              return (
-                '<li class="' +
-                r.k +
-                '"><b>' +
-                r.t +
-                '</b><span>' +
-                r.a +
-                '</span></li>'
-              )
-            })
-            .join('')
-        }
-
-        function setView(view) {
-          demo.querySelectorAll('.rail-item').forEach(function (b) {
-            b.classList.toggle('active', b.getAttribute('data-view') === view)
-          })
-          demo.querySelectorAll('.pane').forEach(function (p) {
-            p.classList.toggle('hidden', p.getAttribute('data-panel') !== view)
-          })
-        }
-
-        function updateSettingsNote() {
-          var note = document.getElementById('settings-note')
-          var parts = []
-          if (comps.otodom) parts.push('Otodom')
-          if (comps.otomoto) parts.push('Otomoto')
-          if (parts.length === 0) {
-            note.textContent = 'Comps off — holdings use manual values only.'
-          } else {
-            note.textContent =
-              parts.join(' + ') + ' on — property & car use live portal ranges when you sign in.'
-          }
-        }
-
-        demo.querySelectorAll('.rail-item').forEach(function (btn) {
-          btn.addEventListener('click', function () {
-            setView(btn.getAttribute('data-view'))
-          })
-        })
-
-        demo.querySelectorAll('.periods button').forEach(function (btn) {
-          btn.addEventListener('click', function () {
-            setPeriod(btn.getAttribute('data-period'))
-          })
-        })
-
-        document.getElementById('cf-prev').addEventListener('click', function () {
-          monthIdx = (monthIdx + months.length - 1) % months.length
-          renderMonth()
-        })
-        document.getElementById('cf-next').addEventListener('click', function () {
-          monthIdx = (monthIdx + 1) % months.length
-          renderMonth()
-        })
-
-        demo.querySelectorAll('.toggle').forEach(function (btn) {
-          btn.addEventListener('click', function () {
-            var key = btn.getAttribute('data-toggle')
-            var on = !btn.classList.contains('on')
-            btn.classList.toggle('on', on)
-            btn.setAttribute('aria-pressed', on ? 'true' : 'false')
-            if (key === 'mask') {
-              masked = on
-              demo.classList.toggle('masked', masked)
-            } else if (key === 'otodom' || key === 'otomoto') {
-              comps[key] = on
-              updateSettingsNote()
-            }
-          })
-        })
-
-        renderHoldings()
-        setPeriod('1y')
-        renderMonth()
-      })()
-    </script>
+    <script src="./demo.js"></script>
   </body>
 </html>
