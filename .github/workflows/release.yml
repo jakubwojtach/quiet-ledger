@@ -57,7 +57,8 @@ jobs:
   mac:
     needs: version
     runs-on: macos-14
-    timeout-minutes: 60
+    # First-team notarization can exceed 30m; leave headroom for staple + dmg.
+    timeout-minutes: 150
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -86,7 +87,7 @@ jobs:
           export CSC_IDENTITY_AUTO_DISCOVERY=true
           npm run build:mac
       - name: Notarize with Apple (notarytool)
-        timeout-minutes: 35
+        timeout-minutes: 120
         env:
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}

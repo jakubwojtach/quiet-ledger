@@ -1,0 +1,37 @@
+name: Check notarize status
+
+on:
+  workflow_dispatch:
+    inputs:
+      submission_id:
+        description: Apple notarytool submission UUID
+        required: true
+        type: string
+
+jobs:
+  status:
+    runs-on: macos-14
+    timeout-minutes: 10
+    steps:
+      - name: Query Apple notarytool
+        env:
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          SUB_ID: ${{ inputs.submission_id }}
+        run: |
+          set -euo pipefail
+          if [[ -z "${APPLE_ID}" || -z "${APPLE_APP_SPECIFIC_PASSWORD}" || -z "${APPLE_TEAM_ID}" ]]; then
+            echo "::error::Missing Apple secrets"
+            exit 1
+          fi
+          echo "Submission: ${SUB_ID}"
+          xcrun notarytool info "${SUB_ID}" \
+            --apple-id "${APPLE_ID}" \
+            --password "${APPLE_APP_SPECIFIC_PASSWORD}" \
+            --team-id "${APPLE_TEAM_ID}"
+          echo "--- log (if available) ---"
+          xcrun notarytool log "${SUB_ID}" \
+            --apple-id "${APPLE_ID}" \
+            --password "${APPLE_APP_SPECIFIC_PASSWORD}" \
+            --team-id "${APPLE_TEAM_ID}" || true
