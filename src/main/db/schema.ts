@@ -25,8 +25,16 @@ CREATE TABLE IF NOT EXISTS assets (
   amount_minor INTEGER,
   currency TEXT,
   valued_on TEXT,
-  -- apartment / land / car: 'estimate' (catalog formula) or 'manual'
+  -- apartment / land / car: 'estimate' | 'manual' | 'otodom' | 'otomoto'
   value_source TEXT,
+  -- apartment / land: address + m² for Otodom comps
+  address TEXT,
+  area_m2 REAL,
+  -- car: Otomoto comps
+  car_make TEXT,
+  car_model TEXT,
+  car_year INTEGER,
+  car_trim TEXT,
   -- wrapper or institution, e.g. IKE, IKZE Kaja, Broker USD
   account TEXT,
   created_at TEXT NOT NULL,
@@ -77,8 +85,16 @@ CREATE TABLE IF NOT EXISTS price_cache (
 CREATE TABLE IF NOT EXISTS income_entries (
   id TEXT PRIMARY KEY NOT NULL,
   month TEXT NOT NULL,
+  -- settlement / expected date YYYY-MM-DD
+  date TEXT NOT NULL,
   amount_minor INTEGER NOT NULL,
   currency TEXT NOT NULL DEFAULT 'PLN',
+  -- PLN per 1 unit × 10_000; PLN = 10000
+  fx_rate_scaled INTEGER NOT NULL DEFAULT 10000,
+  -- cached PLN equivalent
+  pln_amount_minor INTEGER NOT NULL,
+  -- 'expected' | 'received'
+  status TEXT NOT NULL DEFAULT 'received' CHECK (status IN ('expected', 'received')),
   note TEXT,
   created_at TEXT NOT NULL
 );
@@ -125,8 +141,24 @@ CREATE TABLE IF NOT EXISTS net_worth_snapshots (
   recorded_at TEXT NOT NULL
 );
 
+-- Cash in / out for savings accounts (PLN & USD). Balance = deposits − withdrawals.
+CREATE TABLE IF NOT EXISTS asset_movements (
+  id TEXT PRIMARY KEY NOT NULL,
+  asset_id TEXT NOT NULL REFERENCES assets(id) ON DELETE CASCADE,
+  date TEXT NOT NULL,
+  kind TEXT NOT NULL CHECK (kind IN ('deposit', 'withdrawal')),
+  -- Always stored positive; sign comes from kind
+  amount_minor INTEGER NOT NULL CHECK (amount_minor > 0),
+  currency TEXT NOT NULL,
+  -- 1 when seeded from a pre-existing balance so derived total matches
+  estimated INTEGER NOT NULL DEFAULT 0,
+  note TEXT,
+  created_at TEXT NOT NULL
+);
+
 CREATE INDEX IF NOT EXISTS idx_assets_class ON assets(class);
 CREATE INDEX IF NOT EXISTS idx_asset_lots_asset ON asset_lots(asset_id, date);
+CREATE INDEX IF NOT EXISTS idx_asset_movements_asset ON asset_movements(asset_id, date);
 CREATE INDEX IF NOT EXISTS idx_income_month ON income_entries(month);
 CREATE INDEX IF NOT EXISTS idx_expense_date ON expense_entries(date);
 CREATE INDEX IF NOT EXISTS idx_price_cache_fetched ON price_cache(fetched_at);

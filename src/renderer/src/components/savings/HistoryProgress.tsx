@@ -1,6 +1,6 @@
 import type { JSX } from 'react'
 import type { NetWorthHistoryPoint } from '@shared/types'
-import { MoneyAmount } from '@renderer/components/shell/MoneyAmount'
+import { formatPlnCompact } from '@renderer/components/charts/chartTheme'
 import { useLocale } from '@renderer/lib/i18n/locale'
 import { MASK, Sensitive } from '@renderer/lib/privacy'
 import { cn } from '@renderer/lib/utils'
@@ -70,54 +70,61 @@ export function HistoryProgress({
         </Sensitive>
       </div>
 
-      <div className="relative mt-4 grid grid-cols-7 gap-0">
-        <div
-          className="pointer-events-none absolute top-1 right-[calc(100%/7-4px)] left-1 border-t border-dashed border-[var(--line-strong)]"
-          aria-hidden
-        />
-        {slots.map((slot) => {
-          const filledDot = Boolean(slot.point)
-          const highlighted = filledDot && inPeriod.has(slot.day)
-          const dimmed = filledDot && !highlighted
-          const isFirst = slot.index === 0 && filledDot
-          const isLastSlot = slot.index === TARGET - 1
-          return (
-            <div key={slot.day} className="relative flex flex-col gap-0.5 text-[12px] leading-4">
-              <i
-                className={cn(
-                  'mb-2 inline-block size-2.5 rounded-full border-[1.5px]',
-                  highlighted &&
-                    'border-[var(--accent)] bg-[var(--accent)] shadow-[0_0_0_4px_var(--accent-subtle)]',
-                  dimmed && 'border-[var(--ink-3)] bg-[var(--ink-3)] opacity-35',
-                  !filledDot && 'border-[var(--line-strong)] bg-[var(--surface-1)]'
-                )}
-              />
-              <Sensitive
-                placeholder={MASK.dateShort}
-                className={cn('text-[var(--ink-3)]', dimmed && 'opacity-40')}
+      <div className="-mx-1 mt-4 overflow-x-auto px-1">
+        <div className="relative grid min-w-[420px] grid-cols-7 gap-1 sm:min-w-0 sm:gap-0">
+          <div
+            className="pointer-events-none absolute top-1 right-[calc(100%/7-4px)] left-1 border-t border-dashed border-[var(--line-strong)]"
+            aria-hidden
+          />
+          {slots.map((slot) => {
+            const filledDot = Boolean(slot.point)
+            const highlighted = filledDot && inPeriod.has(slot.day)
+            const dimmed = filledDot && !highlighted
+            const isFirst = slot.index === 0 && filledDot
+            const isLastSlot = slot.index === TARGET - 1
+            return (
+              <div
+                key={slot.day}
+                className="relative flex min-w-0 flex-col gap-0.5 text-[11px] leading-4 sm:text-[12px]"
               >
-                {formatShort(slot.day, localeTag)}
-              </Sensitive>
-              {isFirst ? (
-                <span className={cn('text-[var(--ink-2)]', dimmed && 'opacity-40')}>
-                  {t('history.firstSnapshot')}
-                </span>
-              ) : filledDot && slot.point ? (
-                <span className={cn(dimmed && 'opacity-40')}>
-                  <MoneyAmount
-                    amountMinor={slot.point.netWorthPlnMinor}
-                    showCurrency={false}
-                    className="!text-[12px]"
-                  />
-                </span>
-              ) : isLastSlot ? (
-                <span className="text-[var(--ink-3)]">{t('history.trendUnlocks')}</span>
-              ) : (
-                <span className="text-[var(--ink-3)]">&nbsp;</span>
-              )}
-            </div>
-          )
-        })}
+                <i
+                  className={cn(
+                    'mb-2 inline-block size-2.5 rounded-full border-[1.5px]',
+                    highlighted &&
+                      'border-[var(--accent)] bg-[var(--accent)] shadow-[0_0_0_4px_var(--accent-subtle)]',
+                    dimmed && 'border-[var(--ink-3)] bg-[var(--ink-3)] opacity-35',
+                    !filledDot && 'border-[var(--line-strong)] bg-[var(--surface-1)]'
+                  )}
+                />
+                <Sensitive
+                  placeholder={MASK.dateShort}
+                  className={cn('truncate text-[var(--ink-3)]', dimmed && 'opacity-40')}
+                >
+                  {formatShort(slot.day, localeTag)}
+                </Sensitive>
+                {isFirst ? (
+                  <span className={cn('truncate text-[var(--ink-2)]', dimmed && 'opacity-40')}>
+                    {t('history.firstSnapshot')}
+                  </span>
+                ) : filledDot && slot.point ? (
+                  <Sensitive
+                    placeholder={MASK.moneyShort}
+                    className={cn(
+                      'num truncate tabular-nums text-[var(--ink)]',
+                      dimmed && 'opacity-40'
+                    )}
+                  >
+                    {formatPlnCompact(slot.point.netWorthPlnMinor, localeTag)}
+                  </Sensitive>
+                ) : isLastSlot ? (
+                  <span className="truncate text-[var(--ink-3)]">{t('history.trendUnlocks')}</span>
+                ) : (
+                  <span className="text-[var(--ink-3)]">&nbsp;</span>
+                )}
+              </div>
+            )
+          })}
+        </div>
       </div>
     </section>
   )

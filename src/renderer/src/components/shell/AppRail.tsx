@@ -1,6 +1,7 @@
 import type { JSX, ReactNode } from 'react'
 import type { LucideIcon } from 'lucide-react'
 import { PanelLeft, PanelLeftClose, Settings2 } from 'lucide-react'
+import { BrandLockup } from '@renderer/components/BrandLockup'
 import { DeltaChip } from '@renderer/components/shell/DeltaChip'
 import { useLocale } from '@renderer/lib/i18n/locale'
 import { MASK, Sensitive } from '@renderer/lib/privacy'
@@ -93,21 +94,27 @@ export function AppRail({
       {/* Traffic-light clearance + window drag (hiddenInset has no native titlebar drag) */}
       <div className="app-region-drag hidden h-8 shrink-0 md:block" aria-hidden />
 
-      {/* Date context (not a second "Savings" label) */}
-      {!collapsed ? (
-        <div
-          className="app-region-drag flex min-h-10 shrink-0 flex-col justify-center gap-0.5 border-b border-[var(--line)] px-3 py-2"
-          data-testid="rail-date"
-        >
-          <p className="hidden text-[10px] font-semibold tracking-[0.16em] text-[var(--ink-3)] uppercase md:block">
-            {isToday ? t('rail.today') : t('rail.asOf')}
-            {weekday ? ` · ${weekday}` : ''}
-          </p>
-          <p className="hidden text-[13px] leading-4 font-medium tracking-[-0.01em] text-[var(--ink)] md:block">
-            <Sensitive placeholder={MASK.date}>{dateLabel}</Sensitive>
-          </p>
-        </div>
-      ) : null}
+      <div
+        className={cn(
+          'app-region-drag shrink-0 border-b border-[var(--line)]',
+          collapsed ? 'flex justify-center px-1.5 py-2' : 'px-3 py-2.5'
+        )}
+        data-testid="rail-brand"
+      >
+        <BrandLockup
+          compact={collapsed}
+          subtitle={
+            collapsed ? undefined : (
+              <>
+                {isToday ? t('rail.today') : t('rail.asOf')}
+                {weekday ? ` · ${weekday}` : ''}
+                {' · '}
+                <Sensitive placeholder={MASK.date}>{dateLabel}</Sensitive>
+              </>
+            )
+          }
+        />
+      </div>
 
       <div
         className={cn(

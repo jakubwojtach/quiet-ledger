@@ -1,6 +1,6 @@
 import { useEffect, useState, type FormEvent, type JSX } from 'react'
 import { ASSET_CLASS_LABELS, QUANTITY_SCALE, type Asset, type AssetClass } from '@shared/types'
-import { majorToMinor, minorToMajor } from '@shared/money'
+import { majorToMinor, minorToMajor, parseMajorInput } from '@shared/money'
 import { catalogEstimateFor } from '@shared/valuationFormulas'
 import type { UpsertAssetRequest } from '@shared/ipc'
 import { useUpsertAsset } from '@renderer/hooks/useNetWorth'
@@ -55,6 +55,12 @@ export function AssetFormDialog({ open, onOpenChange, asset }: AssetFormDialogPr
   const [currency, setCurrency] = useState('PLN')
   const [value, setValue] = useState('')
   const [paid, setPaid] = useState('')
+  const [address, setAddress] = useState('')
+  const [areaM2, setAreaM2] = useState('')
+  const [carMake, setCarMake] = useState('')
+  const [carModel, setCarModel] = useState('')
+  const [carYear, setCarYear] = useState('')
+  const [carTrim, setCarTrim] = useState('')
   const [valuedOn, setValuedOn] = useState(new Date().toISOString().slice(0, 10))
   const [error, setError] = useState<string | null>(null)
 
@@ -79,6 +85,12 @@ export function AssetFormDialog({ open, onOpenChange, asset }: AssetFormDialogPr
       setCurrency('PLN')
       setValue('')
       setPaid('')
+      setAddress('')
+      setAreaM2('')
+      setCarMake('')
+      setCarModel('')
+      setCarYear('')
+      setCarTrim('')
       setValuedOn(new Date().toISOString().slice(0, 10))
       return
     }
@@ -113,19 +125,41 @@ export function AssetFormDialog({ open, onOpenChange, asset }: AssetFormDialogPr
       setPaid(asset.costBasisMinor == null ? '' : String(minorToMajor(asset.costBasisMinor)))
       setCurrency(asset.currency)
       setValuedOn(asset.valuedOn)
+      if (asset.class === 'apartment' || asset.class === 'land') {
+        setAddress(asset.address ?? '')
+        setAreaM2(asset.areaM2 == null ? '' : String(asset.areaM2))
+        setCarMake('')
+        setCarModel('')
+        setCarYear('')
+        setCarTrim('')
+      } else if (asset.class === 'car') {
+        setAddress('')
+        setAreaM2('')
+        setCarMake(asset.make ?? '')
+        setCarModel(asset.model ?? '')
+        setCarYear(asset.year == null ? '' : String(asset.year))
+        setCarTrim(asset.trim ?? '')
+      } else {
+        setAddress('')
+        setAreaM2('')
+        setCarMake('')
+        setCarModel('')
+        setCarYear('')
+        setCarTrim('')
+      }
     }
   }, [open, asset])
 
   function num(s: string): number {
-    return Number(s.replace(/\s/g, '').replace(',', '.'))
+    return parseMajorInput(s) ?? Number.NaN
   }
 
   /** Blank → null; otherwise a non-negative number or an error message. */
   function optionalAmount(s: string, label: string): number | null {
     const trimmed = s.trim()
     if (!trimmed) return null
-    const n = num(trimmed)
-    if (!Number.isFinite(n) || n < 0) throw new Error(`${label} must be a non-negative amount.`)
+    const n = parseMajorInput(trimmed)
+    if (n == null || n < 0) throw new Error(`${label} must be a non-negative amount.`)
     return n
   }
 
@@ -211,16 +245,59 @@ export function AssetFormDialog({ open, onOpenChange, asset }: AssetFormDialogPr
               return
             }
           }
+          const addr = cls === 'apartment' || cls === 'land' ? address.trim() : ''
+          const areaParsed =
+            cls === 'apartment' || cls === 'land' ? parseMajorInput(areaM2.trim()) : null
+          const useOtodom = Boolean(addr && areaParsed != null && areaParsed > 0)
+          if (addr && (areaParsed == null || areaParsed <= 0)) {
+            setError('Otodom comps need area in m² as well as the address.')
+            return
+          }
+          const make = cls === 'car' ? carMake.trim() : ''
+          const model = cls === 'car' ? carModel.trim() : ''
+          const yearParsed =
+            cls === 'car' && carYear.trim()
+              ? Math.round(Number(carYear.trim().replace(',', '.')))
+              : null
+          const trim = cls === 'car' ? carTrim.trim() : ''
+          const useOtomoto = Boolean(
+            make && model && yearParsed != null && Number.isFinite(yearParsed)
+          )
+          if (cls === 'car' && (make || model || carYear.trim()) && !useOtomoto) {
+            setError('Otomoto comps need make, model, and year.')
+            return
+          }
           const keepEstimate =
-            catalogEstimate != null && majorToMinor(worth) === catalogEstimate.worthMinor
-          payload = {
-            ...base,
-            class: cls,
-            value: worth,
-            currency,
-            valuedOn,
-            costBasis: paidMajor,
-            valueSource: keepEstimate ? 'estimate' : 'manual'
+            !useOtodom &&
+            !useOtomoto &&
+            catalogEstimate != null &&
+            majorToMinor(worth) === catalogEstimate.worthMinor
+          if (cls === 'car') {
+            payload = {
+              ...base,
+              class: 'car',
+              value: worth,
+              currency,
+              valuedOn,
+              costBasis: paidMajor,
+              valueSource: useOtomoto ? 'otomoto' : keepEstimate ? 'estimate' : 'manual',
+              make: make || null,
+              model: model || null,
+              year: yearParsed,
+              trim: trim || null
+            }
+          } else {
+            payload = {
+              ...base,
+              class: cls,
+              value: worth,
+              currency,
+              valuedOn,
+              costBasis: paidMajor,
+              valueSource: useOtodom ? 'otodom' : keepEstimate ? 'estimate' : 'manual',
+              address: addr || null,
+              areaM2: areaParsed
+            }
           }
           break
         }
@@ -401,7 +478,50 @@ export function AssetFormDialog({ open, onOpenChange, asset }: AssetFormDialogPr
             <>
               <Field label="Paid" id="paid" value={paid} onChange={setPaid} />
               <Field label="Worth now" id="mval" value={value} onChange={setValue} />
-              {catalogEstimate && (
+              {(cls === 'apartment' || cls === 'land') && (
+                <>
+                  <Field
+                    label="Address (street, district, city)"
+                    id="prop-address"
+                    value={address}
+                    onChange={setAddress}
+                  />
+                  <Field label="Area (m²)" id="prop-area" value={areaM2} onChange={setAreaM2} />
+                  <p className="text-xs text-ink-muted">
+                    With address + area, Otodom looks up similar {cls === 'land' ? 'plots' : 'flats'}{' '}
+                    nearby and values yours from the median zł/m². Worth now is the fallback if
+                    comps fail. Enable Otodom under Settings → Data sources.
+                  </p>
+                </>
+              )}
+              {cls === 'car' && (
+                <>
+                  <div className="grid grid-cols-2 gap-3">
+                    <Field label="Make (BMW)" id="car-make" value={carMake} onChange={setCarMake} />
+                    <Field
+                      label="Model (X3)"
+                      id="car-model"
+                      value={carModel}
+                      onChange={setCarModel}
+                    />
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <Field label="Year" id="car-year" value={carYear} onChange={setCarYear} />
+                    <Field
+                      label="Trim / keyword (M50)"
+                      id="car-trim"
+                      value={carTrim}
+                      onChange={setCarTrim}
+                    />
+                  </div>
+                  <p className="text-xs text-ink-muted">
+                    With make + model + year, Otomoto finds similar cars (±1 year) and values yours
+                    from the median ask. Optional trim narrows the search. Worth now is the
+                    fallback. Enable Otomoto under Settings → Data sources.
+                  </p>
+                </>
+              )}
+              {catalogEstimate && !(address.trim() && areaM2.trim()) && (
                 <p className="text-xs text-ink-muted">
                   Worth is the {catalogEstimate.catalog.label} catalog estimate and refreshes on launch. Change worth to
                   keep a manual figure. Paid stays as you save it.

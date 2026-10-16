@@ -58,7 +58,7 @@ export function NetWorthTrendChart({
   return (
     <div style={{ height }} className="w-full min-w-0" data-testid="net-worth-trend">
       <ResponsiveContainer width="100%" height="100%">
-        <AreaChart data={data} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
+        <AreaChart data={data} margin={{ top: 8, right: 12, left: 4, bottom: 0 }}>
           <defs>
             <linearGradient id="nwTrendFill" x1="0" y1="0" x2="0" y2="1">
               <stop offset="0%" stopColor={stroke} stopOpacity={privacy ? 0.15 : 0.4} />
@@ -72,15 +72,25 @@ export function NetWorthTrendChart({
             tick={{ fill: axis, fontSize: 10 }}
             axisLine={false}
             tickLine={false}
-            minTickGap={28}
+            minTickGap={48}
           />
           <YAxis
             tickFormatter={(v) => (privacy ? MASK.chart : formatPlnCompact(Number(v), localeTag))}
             tick={{ fill: axis, fontSize: 11 }}
             axisLine={false}
             tickLine={false}
-            width={48}
-            domain={privacy ? [0, 200] : ['dataMin', 'dataMax']}
+            width={56}
+            tickCount={4}
+            domain={
+              privacy
+                ? [0, 200]
+                : (extent: Readonly<[number, number]>) => {
+                    const [dataMin, dataMax] = extent
+                    const span = Math.max(1, dataMax - dataMin)
+                    const pad = span * 0.08
+                    return [dataMin - pad, dataMax + pad] as [number, number]
+                  }
+            }
           />
           <Tooltip
             formatter={(value) => {

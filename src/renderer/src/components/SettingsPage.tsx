@@ -1,5 +1,10 @@
 import { useState, type JSX, type ReactNode } from 'react'
 import {
+  INTEGRATION_DEFS,
+  type IntegrationId,
+  type IntegrationsConfig
+} from '@shared/integrations'
+import {
   ACCENT_PRESETS,
   FONT_PACKS,
   INTERESTS,
@@ -10,6 +15,8 @@ import { usePreferences } from '@renderer/lib/preferences'
 import { useLocale } from '@renderer/lib/i18n/locale'
 import type { Locale } from '@renderer/lib/i18n/messages'
 import type { ThemeMode } from '@renderer/lib/theme'
+import { BrandLockup } from '@renderer/components/BrandLockup'
+import { IntegrationCredentialsFields } from '@renderer/components/IntegrationCredentialsFields'
 import { Button } from '@renderer/components/ui/button'
 import { cn } from '@renderer/lib/utils'
 
@@ -17,6 +24,7 @@ const SECTIONS = [
   { id: 'general', labelKey: 'settings.nav.general' },
   { id: 'appearance', labelKey: 'settings.nav.appearance' },
   { id: 'modules', labelKey: 'settings.nav.modules' },
+  { id: 'sources', labelKey: 'settings.nav.sources' },
   { id: 'privacy', labelKey: 'settings.nav.privacy' },
   { id: 'setup', labelKey: 'settings.nav.setup' }
 ] as const
@@ -44,19 +52,54 @@ export function SettingsPage(): JSX.Element {
     setFontPack,
     setModules,
     setInterests,
+    setIntegrations,
     reopenOnboarding
   } = usePreferences()
   const dbInfo = useDatabaseInfo()
   const [active, setActive] = useState<SectionId>('general')
+  const [testStatus, setTestStatus] = useState<Partial<Record<IntegrationId, string>>>({})
+  const [testingId, setTestingId] = useState<IntegrationId | null>(null)
 
   const toggleInterest = (id: InterestId): void => {
     const on = prefs.interests.includes(id)
     setInterests(on ? prefs.interests.filter((x) => x !== id) : [...prefs.interests, id])
   }
 
+  const patchIntegration = (
+    id: IntegrationId,
+    patch: Partial<IntegrationsConfig[IntegrationId]>
+  ): void => {
+    // comingSoon providers may still be toggled so each user can store their own credentials
+    setIntegrations({
+      ...prefs.integrations,
+      [id]: { ...prefs.integrations[id], ...patch }
+    })
+  }
+
+  const runTest = async (id: IntegrationId): Promise<void> => {
+    setTestingId(id)
+    setTestStatus((s) => ({ ...s, [id]: t('settings.sources.testing') }))
+    try {
+      const result = await window.api.testIntegration({ id })
+      setTestStatus((s) => ({
+        ...s,
+        [id]: t('settings.sources.testOk', { detail: result.detail })
+      }))
+    } catch (err) {
+      setTestStatus((s) => ({
+        ...s,
+        [id]: t('settings.sources.testFail', {
+          detail: (err as Error).message || 'error'
+        })
+      }))
+    } finally {
+      setTestingId(null)
+    }
+  }
+
   const dbPath =
     dbInfo.data?.dbPath ??
-    '~/Library/Application Support/savings-net-worth/networth.sqlite'
+    '~/Library/Application Support/quiet-ledger/networth.sqlite'
 
   const activeLabel = t(SECTIONS.find((s) => s.id === active)!.labelKey)
 
@@ -88,6 +131,7 @@ export function SettingsPage(): JSX.Element {
       </nav>
 
       <div className="min-w-0">
+        <BrandLockup className="mb-5" subtitle={`v${__APP_VERSION__}`} />
         <h3 className="mb-2 text-[13px] leading-5 font-semibold">{activeLabel}</h3>
 
         {active === 'general' ? (
@@ -268,6 +312,111 @@ export function SettingsPage(): JSX.Element {
                 </div>
               }
             />
+          </div>
+        ) : null}
+
+        {active === 'sources' ? (
+          <div className="space-y-3">
+            <p className="text-[12px] leading-4 text-[var(--ink-3)]">{t('settings.sources.hint')}</p>
+            <p className="text-[12px] leading-4 text-[var(--ink-3)]">
+              {t('settings.sources.credentialsHint')}
+            </p>
+            <div className="surface-card overflow-hidden">
+              {INTEGRATION_DEFS.map((def) => {
+                const state = prefs.integrations[def.id]
+                const coming = Boolean(def.comingSoon)
+                const hasSecretFields = Boolean(def.secretFields?.length)
+                const canTest =
+                  !coming &&
+                  (def.id === 'yahoo_equity' ||
+                    def.id === 'frankfurter_fx' ||
+                    def.id === 'analizy_funds' ||
+                    def.id === 'property_catalog' ||
+                    def.id === 'property_otodom' ||
+                    def.id === 'vehicle_otomoto')
+                return (
+                  <div
+                    key={def.id}
+                    className="border-t border-[var(--line)] px-4 py-3 first:border-t-0"
+                  >
+                    <div className="flex flex-wrap items-start gap-3">
+                      <div className="min-w-0 flex-1">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="text-[13px] font-medium">{t(def.labelKey)}</span>
+                          {coming ? (
+                            <span className="rounded bg-[var(--surface-2)] px-1.5 text-[10px] font-semibold tracking-wide text-[var(--ink-3)] uppercase">
+                              {t('integrations.comingSoon')}
+                            </span>
+                          ) : null}
+                          {hasSecretFields ? (
+                            <span className="rounded bg-[var(--surface-2)] px-1.5 text-[10px] font-semibold tracking-wide text-[var(--ink-3)] uppercase">
+                              {def.requiresSecret
+                                ? t('integrations.secret.badge')
+                                : t('integrations.secret.optional')}
+                            </span>
+                          ) : (
+                            <span className="rounded bg-[var(--surface-2)] px-1.5 text-[10px] font-semibold tracking-wide text-[var(--ink-3)] uppercase">
+                              {t('integrations.secret.noKey')}
+                            </span>
+                          )}
+                        </div>
+                        <div className="mt-0.5 text-[12px] leading-4 text-[var(--ink-3)]">
+                          {t(def.hintKey)}
+                        </div>
+                        {testStatus[def.id] ? (
+                          <div className="mt-1 text-[12px] text-[var(--ink-2)]">
+                            {testStatus[def.id]}
+                          </div>
+                        ) : null}
+                      </div>
+                      <div className="flex flex-wrap items-center justify-end gap-2">
+                        <Segment>
+                          <Seg
+                            active={state.mode === 'auto' && state.enabled}
+                            onClick={() =>
+                              patchIntegration(def.id, { enabled: true, mode: 'auto' })
+                            }
+                          >
+                            {t('settings.sources.modeAuto')}
+                          </Seg>
+                          <Seg
+                            active={state.mode === 'manual' || !state.enabled}
+                            onClick={() =>
+                              patchIntegration(def.id, { enabled: false, mode: 'manual' })
+                            }
+                          >
+                            {t('settings.sources.modeManual')}
+                          </Seg>
+                        </Segment>
+                        <Toggle
+                          checked={state.enabled}
+                          onChange={(enabled) =>
+                            patchIntegration(def.id, {
+                              enabled,
+                              mode: enabled ? 'auto' : 'manual'
+                            })
+                          }
+                        />
+                        {canTest ? (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="h-7"
+                            disabled={testingId === def.id || !state.enabled}
+                            onClick={() => void runTest(def.id)}
+                          >
+                            {t('settings.sources.test')}
+                          </Button>
+                        ) : null}
+                      </div>
+                    </div>
+                    {hasSecretFields && state.enabled ? (
+                      <IntegrationCredentialsFields def={def} persist />
+                    ) : null}
+                  </div>
+                )
+              })}
+            </div>
           </div>
         ) : null}
 

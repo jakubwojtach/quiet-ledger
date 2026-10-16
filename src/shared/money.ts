@@ -38,6 +38,36 @@ export function minorToMajor(minor: MinorUnits): number {
   return minor / 100
 }
 
+/**
+ * Parse a major-unit amount typed by a human (PL/EN).
+ * Accepts `1855,56`, `1.855,56`, `1,855.56`, `132.54`, spaces.
+ * Returns null when empty or not a finite number.
+ */
+export function parseMajorInput(raw: string): number | null {
+  let s = raw.trim().replace(/[\s\u00a0]/g, '')
+  if (!s) return null
+
+  const lastComma = s.lastIndexOf(',')
+  const lastDot = s.lastIndexOf('.')
+
+  if (lastComma >= 0 && lastDot >= 0) {
+    // Last separator is the decimal; the other is thousands.
+    if (lastComma > lastDot) {
+      s = s.replace(/\./g, '').replace(',', '.')
+    } else {
+      s = s.replace(/,/g, '')
+    }
+  } else if (lastComma >= 0) {
+    s = s.replace(',', '.')
+  } else if (/^\d{1,3}(\.\d{3})+$/.test(s)) {
+    // 1.855 or 1.855.000 — thousands dots, no decimal part
+    s = s.replace(/\./g, '')
+  }
+
+  const n = Number(s)
+  return Number.isFinite(n) ? n : null
+}
+
 export function formatGainPercent(percent: number, locale = 'pl-PL'): string {
   const sign = percent > 0 ? '+' : ''
   return `${sign}${percent.toLocaleString(locale, {

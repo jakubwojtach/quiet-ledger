@@ -1,12 +1,14 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import type {
+  CopyExpensesToMonthRequest,
   CreateExpenseRequest,
   CreateIncomeRequest,
   UpdateExpenseRequest,
   UpdateIncomeRequest,
   UpsertAssetRequest,
   UpsertLiabilityRequest,
-  UpsertLotRequest
+  UpsertLotRequest,
+  UpsertMovementRequest
 } from '@shared/ipc'
 import type { ExpenseEntry, IncomeEntry } from '@shared/types'
 
@@ -19,6 +21,7 @@ export const queryKeys = {
   expenseCategories: ['expenseCategories'] as const,
   monthSummary: (month: string) => ['monthSummary', month] as const,
   lots: (assetId: string) => ['lots', assetId] as const,
+  movements: (assetId: string) => ['movements', assetId] as const,
   netWorthHistory: ['netWorthHistory'] as const,
   cashflowHistory: ['cashflowHistory'] as const
 }
@@ -28,6 +31,7 @@ function invalidateMoney(qc: ReturnType<typeof useQueryClient>, month?: string):
   void qc.invalidateQueries({ queryKey: queryKeys.assets })
   void qc.invalidateQueries({ queryKey: ['asset'] })
   void qc.invalidateQueries({ queryKey: ['lots'] })
+  void qc.invalidateQueries({ queryKey: ['movements'] })
   void qc.invalidateQueries({ queryKey: queryKeys.liabilities })
   void qc.invalidateQueries({ queryKey: queryKeys.income })
   void qc.invalidateQueries({ queryKey: queryKeys.netWorthHistory })
@@ -89,11 +93,19 @@ export function useCreateIncome() {
     onMutate: async (input) => {
       await qc.cancelQueries({ queryKey: queryKeys.income })
       const previous = qc.getQueryData<IncomeEntry[]>(queryKeys.income)
+      const amountMinor = Math.round(Number(input.amount) * 100)
+      const currency = input.currency ?? 'PLN'
+      const date = input.date ?? `${input.month}-01`
+      const status = input.status === 'expected' ? 'expected' : 'received'
       const optimistic: IncomeEntry = {
         id: `optimistic-${Date.now()}`,
-        month: input.month,
-        amountMinor: Math.round(Number(input.amount) * 100),
-        currency: input.currency ?? 'PLN',
+        month: date.slice(0, 7),
+        date,
+        amountMinor,
+        currency,
+        fxRateScaled: 10_000,
+        plnAmountMinor: amountMinor,
+        status,
         note: input.note ?? null,
         allocations: [],
         createdAt: new Date().toISOString()
@@ -114,6 +126,60 @@ export function useUpdateIncome(month: string) {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: (input: UpdateIncomeRequest) => window.api.updateIncome(input),
+    onMutate: async (input) => {
+      const key = queryKeys.monthSummary(month)
+      await qc.cancelQueries({ queryKey: key })
+      const previous = qc.getQueryData(key)
+      const nextStatus = input.status === 'expected' ? 'expected' : 'received'
+      const amountMinor = Math.round(Number(input.amount) * 100)
+
+      qc.setQueryData(key, (old: unknown) => {
+        if (!old || typeof old !== 'object') return old
+        const summary = old as {
+          income: IncomeEntry[]
+          incomePlnMinor: number
+          expectedIncomePlnMinor: number
+          expensesPlnMinor: number
+          installmentsPlnMinor: number
+          cashflowPlnMinor: number
+        }
+        const income = summary.income.map((e) => {
+          if (e.id !== input.id) return e
+          const plnAmountMinor =
+            e.currency === (input.currency ?? e.currency) && e.amountMinor === amountMinor
+              ? e.plnAmountMinor
+              : amountMinor
+          return {
+            ...e,
+            month: input.date.slice(0, 7),
+            date: input.date,
+            amountMinor,
+            currency: input.currency ?? e.currency,
+            status: nextStatus,
+            note: input.note ?? null,
+            plnAmountMinor
+          }
+        })
+        const incomePlnMinor = income
+          .filter((e) => e.status === 'received')
+          .reduce((s, e) => s + e.plnAmountMinor, 0)
+        const expectedIncomePlnMinor = income
+          .filter((e) => e.status === 'expected')
+          .reduce((s, e) => s + e.plnAmountMinor, 0)
+        return {
+          ...summary,
+          income,
+          incomePlnMinor,
+          expectedIncomePlnMinor,
+          cashflowPlnMinor:
+            incomePlnMinor - summary.expensesPlnMinor - summary.installmentsPlnMinor
+        }
+      })
+      return { previous }
+    },
+    onError: (_err, _input, ctx) => {
+      if (ctx?.previous) qc.setQueryData(queryKeys.monthSummary(month), ctx.previous)
+    },
     onSuccess: (_data, input) => {
       invalidateMoney(qc, month)
       if (input.month !== month) invalidateMoney(qc, input.month)
@@ -235,6 +301,17 @@ export function useDeleteExpense(month: string) {
   })
 }
 
+export function useCopyExpensesToMonth() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (input: CopyExpensesToMonthRequest) => window.api.copyExpensesToMonth(input),
+    onSuccess: (_data, input) => {
+      invalidateMoney(qc, input.fromMonth)
+      invalidateMoney(qc, input.toMonth)
+    }
+  })
+}
+
 export function useUpsertAsset() {
   const qc = useQueryClient()
   return useMutation({
@@ -279,6 +356,30 @@ export function useDeleteLot() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: (id: string) => window.api.deleteLot({ id }),
+    onSuccess: () => invalidateMoney(qc)
+  })
+}
+
+export function useMovements(assetId: string | null) {
+  return useQuery({
+    queryKey: queryKeys.movements(assetId ?? ''),
+    queryFn: () => window.api.listMovements({ assetId: assetId! }),
+    enabled: Boolean(assetId)
+  })
+}
+
+export function useUpsertMovement() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (input: UpsertMovementRequest) => window.api.upsertMovement(input),
+    onSuccess: () => invalidateMoney(qc)
+  })
+}
+
+export function useDeleteMovement() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (id: string) => window.api.deleteMovement({ id }),
     onSuccess: () => invalidateMoney(qc)
   })
 }

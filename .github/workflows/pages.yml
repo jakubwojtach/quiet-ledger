@@ -6,6 +6,8 @@ on:
     paths:
       - 'site/**'
       - '.github/workflows/pages.yml'
+  release:
+    types: [published, edited]
   workflow_dispatch:
 
 permissions:

@@ -196,6 +196,15 @@ html[data-theme='light'] {
     app-region: no-drag;
   }
 
+  /*
+   * While a sheet/dialog is open, drag regions would steal clicks (Electron ignores
+   * z-index for app-region). Disable drag for the modal lifetime only.
+   */
+  html[data-electron-modal] .app-region-drag {
+    -webkit-app-region: no-drag !important;
+    app-region: no-drag !important;
+  }
+
   .font-display {
     font-family: var(--font-display);
     font-weight: 600;
@@ -300,12 +309,68 @@ html[data-theme='light'] {
   background: color-mix(in oklch, var(--bg) 18%, transparent);
   backdrop-filter: blur(6px) saturate(1.15);
   -webkit-backdrop-filter: blur(6px) saturate(1.15);
+  -webkit-app-region: no-drag;
+  app-region: no-drag;
 }
 
-.sheet-glass-panel {
-  background: color-mix(in oklch, var(--surface-1) 92%, transparent);
-  backdrop-filter: blur(20px) saturate(1.5);
-  -webkit-backdrop-filter: blur(20px) saturate(1.5);
+.sheet-glass-panel,
+.sheet-glass-panel * {
+  -webkit-app-region: no-drag !important;
+  app-region: no-drag !important;
+}
+
+/* Splash wordmark: outline is written left→right, then the fill settles in */
+.ql-handwrite-text {
+  font-size: 46px;
+  font-weight: 600;
+  letter-spacing: -0.03em;
+  fill: var(--ink);
+  fill-opacity: 0;
+  stroke: var(--ink);
+  stroke-width: 1.1px;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-dasharray: 260;
+  stroke-dashoffset: 260;
+  animation:
+    ql-handwrite-stroke 1.7s cubic-bezier(0.55, 0.1, 0.35, 1) 0.5s forwards,
+    ql-handwrite-fill 0.6s ease-out 1.9s forwards;
+}
+
+.ql-handwrite-pen {
+  transform: scaleX(0);
+  transform-origin: left center;
+  transform-box: fill-box;
+  animation: ql-handwrite-pen 1.5s cubic-bezier(0.45, 0.05, 0.4, 1) 0.5s forwards;
+}
+
+@keyframes ql-handwrite-stroke {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+@keyframes ql-handwrite-fill {
+  to {
+    fill-opacity: 1;
+    stroke-width: 0;
+  }
+}
+
+@keyframes ql-handwrite-pen {
+  to {
+    transform: scaleX(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ql-handwrite-text,
+  .ql-handwrite-pen {
+    animation: none;
+    transform: none;
+    fill-opacity: 1;
+    stroke-dashoffset: 0;
+  }
 }
 
 /* Sheet drawer: glass overlay + slide (Radix waits for these on close) */

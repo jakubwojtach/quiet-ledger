@@ -4,7 +4,8 @@
  * Does not run on app start — invoke via `npm run db:reset`.
  *
  * Folder names stay in sync with src/shared/dataDirs.ts:
- *   savings-net-worth — current app
+ *   quiet-ledger — current app
+ *   savings-net-worth — previous product folder
  *   ev-scaffold — old electron-builder productName
  *   Electron — default dev name before the app set its own folder
  */
@@ -12,7 +13,7 @@ import { copyFileSync, existsSync, rmSync } from 'node:fs'
 import { homedir, platform } from 'node:os'
 import { join } from 'node:path'
 
-const DIR_NAMES = ['savings-net-worth', 'ev-scaffold', 'Electron']
+const DIR_NAMES = ['quiet-ledger', 'savings-net-worth', 'ev-scaffold', 'Electron']
 const DB_FILE_NAME = 'networth.sqlite'
 
 function userDataDir(dirName) {
@@ -51,7 +52,7 @@ for (const dirName of DIR_NAMES) {
   }
 }
 
-const canonical = join(userDataDir('savings-net-worth'), DB_FILE_NAME)
+const canonical = join(userDataDir('quiet-ledger'), DB_FILE_NAME)
 console.log(`App reads ${canonical}`)
 if (removed === 0) {
   console.log('Nothing to reset. Next `npm run dev` creates that file and seeds only Fort Wola and Nefrytowa.')

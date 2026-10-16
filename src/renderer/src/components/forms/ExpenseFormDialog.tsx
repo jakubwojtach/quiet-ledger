@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, type FormEvent, type JSX } from 'react'
-import { minorToMajor } from '@shared/money'
+import { minorToMajor, parseMajorInput } from '@shared/money'
 import type { ExpenseEntry, ExpenseStatus, Liability } from '@shared/types'
 import { useCreateExpense, useExpenseCategories, useUpdateExpense } from '@renderer/hooks/useNetWorth'
 import { useLocale } from '@renderer/lib/i18n/locale'
@@ -83,8 +83,8 @@ export function ExpenseFormDialog({
   async function onSubmit(e: FormEvent): Promise<void> {
     e.preventDefault()
     setError(null)
-    const major = Number(amount.replace(',', '.'))
-    if (!Number.isFinite(major) || major <= 0) {
+    const major = parseMajorInput(amount)
+    if (major == null || major <= 0) {
       setError(t('expense.errorAmount'))
       return
     }
@@ -125,10 +125,10 @@ export function ExpenseFormDialog({
         </SheetHeader>
         <form className="flex min-h-0 flex-1 flex-col" onSubmit={(e) => void onSubmit(e)}>
           <SheetBody className="grid content-start gap-3.5">
-            <div className="space-y-1.5">
+            <div className="flex flex-col gap-1.5">
               <Label>{t('expense.status')}</Label>
               <div
-                className="inline-flex rounded-[7px] border border-[var(--line)] bg-[var(--surface-2)] p-0.5"
+                className="inline-flex w-fit rounded-[7px] border border-[var(--line)] bg-[var(--surface-2)] p-0.5"
                 role="group"
                 aria-label={t('expense.status')}
               >

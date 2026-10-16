@@ -46,6 +46,28 @@ export function OverviewPage(): JSX.Element {
     return `${fmt(pts[0].month)} – ${fmt(pts[pts.length - 1].month)} · zł`
   }, [cashflowHistory.data, localeTag])
 
+  // Must run before any early return — month switches flip isLoading and would
+  // otherwise change hook order (Rules of Hooks crash).
+  const receivedIncomePlnMinor = useMemo(
+    () =>
+      (data?.income ?? [])
+        .filter((e) => e.status === 'received')
+        .reduce((sum, e) => sum + e.plnAmountMinor, 0),
+    [data?.income]
+  )
+  const expectedIncomePlnMinor = useMemo(
+    () =>
+      (data?.income ?? [])
+        .filter((e) => e.status === 'expected')
+        .reduce((sum, e) => sum + e.plnAmountMinor, 0),
+    [data?.income]
+  )
+  const cashflowPlnMinor =
+    receivedIncomePlnMinor - (data?.expensesPlnMinor ?? 0) - (data?.installmentsPlnMinor ?? 0)
+  const savingsRate =
+    receivedIncomePlnMinor > 0 ? (cashflowPlnMinor / receivedIncomePlnMinor) * 100 : null
+  const keptPositive = cashflowPlnMinor >= 0
+
   if (isLoading) {
     return (
       <div className="animate-pulse space-y-4" data-testid="installments-loading">
@@ -69,10 +91,6 @@ export function OverviewPage(): JSX.Element {
     )
   }
 
-  const savingsRate =
-    data.incomePlnMinor > 0 ? (data.cashflowPlnMinor / data.incomePlnMinor) * 100 : null
-  const keptPositive = data.cashflowPlnMinor >= 0
-
   return (
     <div className="flex w-full min-w-0 flex-col gap-4" data-testid="installments-overview">
       <FadeUp>
@@ -80,11 +98,11 @@ export function OverviewPage(): JSX.Element {
           className="surface-card grid grid-cols-2 sm:grid-cols-4"
           data-testid="cashflow-kpis"
         >
-          <Kpi label={t('stat.income')} amount={data.incomePlnMinor} />
-          <Kpi label={t('stat.expenses')} amount={data.expensesPlnMinor} />
+          <Kpi label={t('income.receivedSection')} amount={receivedIncomePlnMinor} />
+          <Kpi label={t('expense.paidSection')} amount={data.expensesPlnMinor} />
           <Kpi
             label={t('cashflow.kept')}
-            amount={data.cashflowPlnMinor}
+            amount={cashflowPlnMinor}
             signed
             gain={keptPositive}
           />
@@ -102,17 +120,35 @@ export function OverviewPage(): JSX.Element {
             </div>
           </div>
         </section>
-        {data.duePlnMinor > 0 ? (
-          <Link
-            to={withMonth('/installments/expenses', month)}
-            className="mt-3 inline-flex items-center gap-2 rounded-[10px] border border-[var(--line)] bg-[var(--surface-2)] px-3.5 py-2 text-[13px] text-[var(--ink-2)] transition-colors hover:border-[var(--line-strong)] hover:text-[var(--ink)]"
-            data-testid="still-to-pay-chip"
-          >
-            <span className="font-medium text-[var(--ink)]">{t('expense.stillToPay')}</span>
-            <MoneyAmount amountMinor={data.duePlnMinor} className="!text-[13px] font-medium" />
-            <span className="text-[var(--ink-3)]">· {t('action.open')}</span>
-          </Link>
-        ) : null}
+        {(data.duePlnMinor > 0 || expectedIncomePlnMinor > 0) && (
+          <div className="mt-3 flex flex-wrap gap-2">
+            {data.duePlnMinor > 0 ? (
+              <Link
+                to={withMonth('/installments/expenses', month)}
+                className="inline-flex items-center gap-2 rounded-[10px] border border-[var(--line)] bg-[var(--surface-2)] px-3.5 py-2 text-[13px] text-[var(--ink-2)] transition-colors hover:border-[var(--line-strong)] hover:text-[var(--ink)]"
+                data-testid="still-to-pay-chip"
+              >
+                <span className="font-medium text-[var(--ink)]">{t('expense.stillToPay')}</span>
+                <MoneyAmount amountMinor={data.duePlnMinor} className="!text-[13px] font-medium" />
+                <span className="text-[var(--ink-3)]">· {t('action.open')}</span>
+              </Link>
+            ) : null}
+            {expectedIncomePlnMinor > 0 ? (
+              <Link
+                to={withMonth('/installments/income', month)}
+                className="inline-flex items-center gap-2 rounded-[10px] border border-[var(--line)] bg-[var(--surface-2)] px-3.5 py-2 text-[13px] text-[var(--ink-2)] transition-colors hover:border-[var(--line-strong)] hover:text-[var(--ink)]"
+                data-testid="expected-income-chip"
+              >
+                <span className="font-medium text-[var(--ink)]">{t('income.expectedSection')}</span>
+                <MoneyAmount
+                  amountMinor={expectedIncomePlnMinor}
+                  className="!text-[13px] font-medium"
+                />
+                <span className="text-[var(--ink-3)]">· {t('action.open')}</span>
+              </Link>
+            ) : null}
+          </div>
+        )}
       </FadeUp>
 
       <div className="grid min-w-0 gap-4 lg:grid-cols-[minmax(0,1fr)_360px] max-[1359px]:lg:grid-cols-[minmax(0,1fr)_320px]">
@@ -171,20 +207,22 @@ export function OverviewPage(): JSX.Element {
         </FadeUp>
         <FadeUp delay={0.07}>
           <ListCard
-            title={t('nav.income')}
-            total={data.incomePlnMinor}
+            title={t('income.receivedSection')}
+            total={receivedIncomePlnMinor}
             empty={t('installments.noIncome')}
             link={withMonth('/installments/income', month)}
             tone="accent"
-            rows={data.income.map((row) => ({
-              id: row.id,
-              name: row.note?.trim() || t('stat.income'),
-              amount: row.amountMinor,
-              weight:
-                row.currency === 'PLN' && data.incomePlnMinor > 0
-                  ? (row.amountMinor / data.incomePlnMinor) * 100
-                  : 0
-            }))}
+            rows={data.income
+              .filter((row) => row.status === 'received')
+              .map((row) => ({
+                id: row.id,
+                name: row.note?.trim() || t('stat.income'),
+                amount: row.plnAmountMinor,
+                weight:
+                  receivedIncomePlnMinor > 0
+                    ? (row.plnAmountMinor / receivedIncomePlnMinor) * 100
+                    : 0
+              }))}
           />
         </FadeUp>
         <FadeUp delay={0.08}>

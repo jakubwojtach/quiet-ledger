@@ -12,13 +12,17 @@ export async function buildMonthSummary(month: string): Promise<MonthSummary> {
   const valuedLiabilities = await Promise.all(listLiabilities().map(valueLiability))
 
   let incomePlnMinor = 0
+  let expectedIncomePlnMinor = 0
   let expensesPlnMinor = 0
   let fxStale = false
 
   for (const entry of incomeRows) {
-    const { plnMinor, stale } = await convertToPlnMinor(entry.amountMinor, entry.currency)
+    const plnMinor = entry.plnAmountMinor
+    if (entry.status === 'expected') {
+      expectedIncomePlnMinor += plnMinor
+      continue
+    }
     incomePlnMinor += plnMinor
-    if (stale) fxStale = true
   }
 
   let duePlnMinor = 0
@@ -57,6 +61,7 @@ export async function buildMonthSummary(month: string): Promise<MonthSummary> {
   const summary: MonthSummary = {
     month,
     incomePlnMinor,
+    expectedIncomePlnMinor,
     expensesPlnMinor,
     duePlnMinor,
     installmentsPlnMinor,

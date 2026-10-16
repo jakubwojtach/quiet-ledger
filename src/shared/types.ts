@@ -45,6 +45,30 @@ export function supportsLots(cls: AssetClass): cls is LotClass {
   return (LOT_CLASSES as readonly AssetClass[]).includes(cls)
 }
 
+/** Cash deposit / withdrawal ledger (balance derived). */
+export const MOVEMENT_CLASSES = ['savings_usd', 'savings_pln'] as const satisfies readonly AssetClass[]
+export type MovementClass = (typeof MOVEMENT_CLASSES)[number]
+
+export function supportsMovements(cls: AssetClass): cls is MovementClass {
+  return (MOVEMENT_CLASSES as readonly AssetClass[]).includes(cls)
+}
+
+export type MovementKind = 'deposit' | 'withdrawal'
+
+export interface AssetMovement {
+  id: string
+  assetId: string
+  /** YYYY-MM-DD */
+  date: string
+  kind: MovementKind
+  /** Always positive; sign comes from kind */
+  amountMinor: MinorUnits
+  currency: CurrencyCode
+  estimated: boolean
+  note: string | null
+  createdAt: string
+}
+
 /** One purchase of an ETF, bond series or fund units. */
 export interface AssetLot {
   id: string
@@ -112,7 +136,7 @@ export interface SavingsDetails {
   currency: CurrencyCode
 }
 
-export type ValueSource = 'estimate' | 'manual'
+export type ValueSource = 'estimate' | 'manual' | 'otodom' | 'otomoto'
 
 export interface ManualPropertyDetails {
   valueMinor: MinorUnits
@@ -121,6 +145,18 @@ export interface ManualPropertyDetails {
   /** What you paid, in `currency` minor units. Null when unknown. */
   costBasisMinor: MinorUnits | null
   valueSource: ValueSource
+  /** Street / district / city — used by Otodom comps (apartment/land). */
+  address?: string | null
+  /** Floor area in m² — used by Otodom comps (apartment/land). */
+  areaM2?: number | null
+  /** Car: Otomoto make slug / name (e.g. BMW). */
+  make?: string | null
+  /** Car: Otomoto model (e.g. X3). */
+  model?: string | null
+  /** Car: model year for Otomoto comps. */
+  year?: number | null
+  /** Car: optional trim/keyword filter (e.g. M50). */
+  trim?: string | null
 }
 
 export type AssetDetails =
@@ -205,12 +241,26 @@ export interface IncomeAllocation {
   amountMinor: MinorUnits
 }
 
+/** expected = planned (not in cashflow); received = landed (counts) */
+export type IncomeStatus = 'expected' | 'received'
+
 export interface IncomeEntry {
   id: string
-  /** YYYY-MM */
+  /** YYYY-MM — derived from `date` */
   month: string
+  /** Settlement or expected date YYYY-MM-DD */
+  date: string
+  /** Amount in `currency` minor units */
   amountMinor: MinorUnits
   currency: CurrencyCode
+  /**
+   * PLN per 1 unit of currency × 10_000 (PRICE_SCALE).
+   * PLN entries use 10_000 (rate 1).
+   */
+  fxRateScaled: number
+  /** Cached PLN equivalent at the stored FX rate */
+  plnAmountMinor: MinorUnits
+  status: IncomeStatus
   note: string | null
   allocations: IncomeAllocation[]
   createdAt: string
@@ -222,6 +272,14 @@ export interface CreateIncomeInput {
   currency?: CurrencyCode
   note?: string | null
   allocations: IncomeAllocation[]
+}
+
+export interface FxRateQuote {
+  currency: string
+  date: string
+  /** PLN per 1 unit of currency */
+  rate: number
+  stale: boolean
 }
 
 export interface ExpenseCategory {
@@ -259,7 +317,10 @@ export interface CategorySpend {
 
 export interface MonthSummary {
   month: string
+  /** Received income only — what landed */
   incomePlnMinor: MinorUnits
+  /** Expected income not yet received (not in cashflow) */
+  expectedIncomePlnMinor: MinorUnits
   /** Paid expenses only — what left the account */
   expensesPlnMinor: MinorUnits
   /** Due expenses still to pay (not in cashflow) */

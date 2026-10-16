@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type JSX, type ReactNode } from 'react'
+import { useCallback, useEffect, useMemo, useState, type JSX, type ReactNode } from 'react'
 import { PiggyBank, Wallet } from 'lucide-react'
 import {
   HashRouter,
@@ -22,6 +22,7 @@ import { CashflowBar } from '@renderer/components/installments/CashflowBar'
 import { AssetFormDialog } from '@renderer/components/forms/AssetFormDialog'
 import { OnboardingWizard } from '@renderer/components/OnboardingWizard'
 import { SettingsPage } from '@renderer/components/SettingsPage'
+import { BrandReveal, SplashScreen, shouldShowSplash } from '@renderer/components/SplashScreen'
 import { AppRail } from '@renderer/components/shell/AppRail'
 import { ContextStrip } from '@renderer/components/shell/ContextStrip'
 import { FreshnessChip } from '@renderer/components/shell/FreshnessChip'
@@ -29,7 +30,7 @@ import { PrivacyToggle } from '@renderer/components/shell/PrivacyToggle'
 import { SavingsDashboard } from '@renderer/components/savings/SavingsDashboard'
 import { PageTransition } from '@renderer/components/motion/PageTransition'
 import { useDashboard, useDeleteAsset, useNetWorthHistory } from '@renderer/hooks/useNetWorth'
-import { defaultHomePath } from '@renderer/lib/appPreferences'
+import { defaultHomePath, type AppPreferences } from '@renderer/lib/appPreferences'
 import { useLocale } from '@renderer/lib/i18n/locale'
 import { usePreferences } from '@renderer/lib/preferences'
 import type { Asset } from '@shared/types'
@@ -49,10 +50,28 @@ export default function App(): JSX.Element {
 
 /** Onboarding is a full-window first run — never stacked over the live shell. */
 function AppTree(): JSX.Element {
-  const { prefs } = usePreferences()
-  if (!prefs.onboardingCompleted) return <OnboardingWizard />
+  const { prefs, completeOnboarding } = usePreferences()
+  const navigate = useNavigate()
+  const [splash, setSplash] = useState(shouldShowSplash)
+  /** Welcome reveal after onboarding — covers the shell so fade lands on the app, not the wizard. */
+  const [welcome, setWelcome] = useState(false)
+  const dismissSplash = useCallback(() => setSplash(false), [])
+  const dismissWelcome = useCallback(() => setWelcome(false), [])
 
-  return (
+  const enterApp = useCallback(
+    (next: AppPreferences) => {
+      // Mount reveal first in the same tick as the shell so the wizard never peeks through.
+      setWelcome(true)
+      setSplash(false)
+      completeOnboarding(next)
+      navigate(defaultHomePath(next), { replace: true })
+    },
+    [completeOnboarding, navigate]
+  )
+
+  const body = !prefs.onboardingCompleted ? (
+    <OnboardingWizard onEnterApp={enterApp} />
+  ) : (
     <Routes>
       <Route path="/" element={<HomeRedirect />} />
       <Route
@@ -100,6 +119,16 @@ function AppTree(): JSX.Element {
       />
       <Route path="*" element={<HomeRedirect />} />
     </Routes>
+  )
+
+  return (
+    <>
+      {body}
+      {splash && !welcome ? <SplashScreen onDone={dismissSplash} /> : null}
+      {welcome ? (
+        <BrandReveal onDone={dismissWelcome} testId="onboarding-handoff" className="z-[400]" />
+      ) : null}
+    </>
   )
 }
 

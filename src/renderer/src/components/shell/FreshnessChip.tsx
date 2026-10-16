@@ -20,13 +20,19 @@ function relativeLabel(ms: number, localeTag: string): string {
   return pl ? `${days} dn.` : `${days}d ago`
 }
 
-/** Dot + “Snapshot · …”. Green &lt;24h, amber otherwise; “Stale” after 30d. */
+/**
+ * Dot + “Snapshot · …”.
+ * Label is snapshot age (`asOf`). “Stale” only when the snapshot itself is ≥30d old.
+ * `stale` (fx/price approx) only affects color + tooltip — refresh updates `asOf`, so the
+ * chip must not keep saying “Stale” just because one quote still fell back to cache.
+ */
 export function FreshnessChip({
   asOf,
   stale,
   className
 }: {
   asOf?: string | null
+  /** True when some FX/price used last-known values — warn styling, not the “Stale” label. */
   stale?: boolean
   className?: string
 }): JSX.Element | null {
@@ -37,9 +43,17 @@ export function FreshnessChip({
   const ms = ageMs(asOf)
   const day = 24 * 60 * 60 * 1000
   const fresh = ms < day
-  const veryStale = ms >= 30 * day || stale
-  const label = relativeLabel(ms, localeTag)
-  const tip = privacy ? undefined : new Date(asOf).toLocaleString(localeTag)
+  const snapshotAncient = ms >= 30 * day
+  const warn = snapshotAncient || Boolean(stale)
+  const ageLabel = snapshotAncient ? t('freshness.stale') : relativeLabel(ms, localeTag)
+  const tip = privacy
+    ? undefined
+    : [
+        new Date(asOf).toLocaleString(localeTag),
+        stale && !snapshotAncient ? t('freshness.staleHint') : null
+      ]
+        .filter(Boolean)
+        .join(' · ')
 
   return (
     <div
@@ -50,7 +64,7 @@ export function FreshnessChip({
         data-testid="freshness-chip"
         className={cn(
           'inline-flex h-[22px] items-center gap-1.5 rounded-md px-2 text-[12px] leading-4 font-medium',
-          veryStale
+          warn
             ? 'bg-[var(--warn-subtle)] text-[var(--warn)]'
             : 'bg-[var(--surface-2)] text-[var(--ink-2)]'
         )}
@@ -58,18 +72,17 @@ export function FreshnessChip({
         <span
           className={cn(
             'inline-block size-1.5 rounded-full',
-            fresh && !veryStale ? 'bg-[var(--gain)]' : 'bg-[var(--warn)]'
+            fresh && !warn ? 'bg-[var(--gain)]' : 'bg-[var(--warn)]'
           )}
           aria-hidden
         />
         {privacy ? (
           <>
-            {t('freshness.snapshot')} · <Sensitive placeholder={MASK.dateShort}>{label}</Sensitive>
+            {t('freshness.snapshot')} ·{' '}
+            <Sensitive placeholder={MASK.dateShort}>{ageLabel}</Sensitive>
           </>
-        ) : veryStale ? (
-          `${t('freshness.snapshot')} · ${t('freshness.stale')}`
         ) : (
-          `${t('freshness.snapshot')} · ${label}`
+          `${t('freshness.snapshot')} · ${ageLabel}`
         )}
       </span>
     </div>

@@ -2,26 +2,36 @@ import { contextBridge, ipcRenderer } from 'electron'
 import {
   IpcChannels,
   IpcRequestSchemas,
+  type CopyExpensesToMonthRequest,
   type CreateExpenseRequest,
   type CreateIncomeRequest,
   type GetAssetRequest,
+  type GetFxRateRequest,
   type GetMonthSummaryRequest,
   type IdRequest,
+  type IntegrationIdRequest,
   type ListLotsRequest,
+  type ListMovementsRequest,
+  type SetIntegrationSecretRequest,
+  type SetIntegrationsRequest,
   type UpdateExpenseRequest,
   type UpdateIncomeRequest,
   type UpsertAssetRequest,
   type UpsertLiabilityRequest,
-  type UpsertLotRequest
+  type UpsertLotRequest,
+  type UpsertMovementRequest
 } from '../shared/ipc'
+import type { IntegrationsConfig } from '../shared/integrations'
 import type { DatabaseInfo } from '../shared/dataDirs'
 import type {
   Asset,
   AssetLot,
+  AssetMovement,
   CashflowMonthPoint,
   DashboardSnapshot,
   ExpenseCategory,
   ExpenseEntry,
+  FxRateQuote,
   IncomeEntry,
   Liability,
   MonthSummary,
@@ -95,6 +105,14 @@ const api = {
   deleteExpense: (request: IdRequest): Promise<{ ok: true }> =>
     invokeValidated(IpcChannels.deleteExpense, request),
 
+  copyExpensesToMonth: (
+    request: CopyExpensesToMonthRequest
+  ): Promise<{ copied: number; skipped: number; toMonth: string }> =>
+    invokeValidated(IpcChannels.copyExpensesToMonth, request),
+
+  getFxRate: (request: GetFxRateRequest): Promise<FxRateQuote> =>
+    invokeValidated(IpcChannels.getFxRate, request),
+
   getDatabaseInfo: (): Promise<DatabaseInfo> => invokeValidated(IpcChannels.getDatabaseInfo),
 
   listLots: (request: ListLotsRequest): Promise<ValuedLot[]> =>
@@ -106,11 +124,42 @@ const api = {
   deleteLot: (request: IdRequest): Promise<{ ok: true }> =>
     invokeValidated(IpcChannels.deleteLot, request),
 
+  listMovements: (request: ListMovementsRequest): Promise<AssetMovement[]> =>
+    invokeValidated(IpcChannels.listMovements, request),
+
+  upsertMovement: (request: UpsertMovementRequest): Promise<AssetMovement> =>
+    invokeValidated(IpcChannels.upsertMovement, request),
+
+  deleteMovement: (request: IdRequest): Promise<{ ok: true }> =>
+    invokeValidated(IpcChannels.deleteMovement, request),
+
   getNetWorthHistory: (): Promise<NetWorthHistoryPoint[]> =>
     invokeValidated(IpcChannels.getNetWorthHistory),
 
   getCashflowHistory: (): Promise<CashflowMonthPoint[]> =>
-    invokeValidated(IpcChannels.getCashflowHistory)
+    invokeValidated(IpcChannels.getCashflowHistory),
+
+  getIntegrations: (): Promise<IntegrationsConfig> =>
+    invokeValidated(IpcChannels.getIntegrations),
+
+  setIntegrations: (request: SetIntegrationsRequest): Promise<IntegrationsConfig> =>
+    invokeValidated(IpcChannels.setIntegrations, request),
+
+  setIntegrationSecret: (request: SetIntegrationSecretRequest): Promise<{ ok: true }> =>
+    invokeValidated(IpcChannels.setIntegrationSecret, request),
+
+  hasIntegrationSecret: (
+    request: IntegrationIdRequest
+  ): Promise<{ id: string; hasSecret: boolean }> =>
+    invokeValidated(IpcChannels.hasIntegrationSecret, request),
+
+  clearIntegrationSecret: (request: IntegrationIdRequest): Promise<{ ok: true }> =>
+    invokeValidated(IpcChannels.clearIntegrationSecret, request),
+
+  testIntegration: (
+    request: IntegrationIdRequest
+  ): Promise<{ ok: true; detail: string }> =>
+    invokeValidated(IpcChannels.testIntegration, request)
 }
 
 export type NetWorthApi = typeof api

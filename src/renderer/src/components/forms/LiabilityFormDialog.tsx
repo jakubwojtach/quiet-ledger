@@ -1,5 +1,5 @@
 import { useEffect, useState, type FormEvent, type JSX } from 'react'
-import { minorToMajor } from '@shared/money'
+import { minorToMajor, parseMajorInput } from '@shared/money'
 import type { Liability } from '@shared/types'
 import { useUpsertLiability } from '@renderer/hooks/useNetWorth'
 import { Button } from '@renderer/components/ui/button'
@@ -67,20 +67,31 @@ export function LiabilityFormDialog({
       setError('Name is required.')
       return
     }
+    const principalMajor = parseMajorInput(principal)
+    const paymentMajor = parseMajorInput(monthlyPayment)
+    if (principalMajor == null || principalMajor < 0) {
+      setError('Enter a valid remaining principal (e.g. 1855,56).')
+      return
+    }
+    if (paymentMajor == null || paymentMajor < 0) {
+      setError('Enter a valid monthly payment (e.g. 132,54).')
+      return
+    }
     try {
       await upsert.mutateAsync({
         id: liability?.id,
         name: name.trim(),
         provider: provider.trim() || null,
-        principal: Number(principal.replace(',', '.')),
-        monthlyPayment: Number(monthlyPayment.replace(',', '.')),
+        principal: principalMajor,
+        monthlyPayment: paymentMajor,
         currency,
         nextDueDate: nextDueDate || null,
         notes: notes.trim() || null
       })
       onOpenChange(false)
     } catch (err) {
-      setError((err as Error).message)
+      const z = err as { issues?: Array<{ message: string }> }
+      setError(z.issues?.map((i) => i.message).join(' · ') || (err as Error).message)
     }
   }
 

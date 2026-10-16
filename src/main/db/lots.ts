@@ -59,29 +59,33 @@ export function syncAssetFromLots(database: BetterSqlite3.Database, assetId: str
   if (totals.currencies > 1) {
     throw new Error('All purchases of one holding must be paid in the same currency.')
   }
+  if (totals.qty < 0) {
+    throw new Error('Withdrawals cannot exceed contributions on this holding.')
+  }
 
   const cls = (
     database.prepare('SELECT class FROM assets WHERE id = ?').get(assetId) as { class: string }
   ).class
   const now = new Date().toISOString()
+  const cost = Math.max(0, totals.paid)
   if (cls === 'etf') {
     database
       .prepare(
         `UPDATE assets SET quantity_scaled = ?, cost_basis_minor = ?, cost_currency = ?, updated_at = ?
          WHERE id = ?`
       )
-      .run(totals.qty, totals.paid, totals.currency, now, assetId)
+      .run(totals.qty, cost, totals.currency, now, assetId)
   } else if (cls === 'retirement') {
     database
       .prepare(
         `UPDATE assets SET units_scaled = ?, cost_basis_minor = ?, cost_currency = ?, updated_at = ?
          WHERE id = ?`
       )
-      .run(totals.qty, totals.paid, totals.currency, now, assetId)
+      .run(totals.qty, cost, totals.currency, now, assetId)
   } else if (cls === 'bond') {
     database
       .prepare('UPDATE assets SET nominal_minor = ?, updated_at = ? WHERE id = ?')
-      .run(totals.paid, now, assetId)
+      .run(Math.max(0, totals.paid), now, assetId)
   }
 }
 
@@ -98,14 +102,16 @@ export function upsertLot(input: UpsertLotParsed): AssetLot {
         | undefined)
     : undefined
 
+  const sign = input.side === 'sell' ? -1 : 1
   const row = {
     id,
     asset_id: input.assetId,
     date: input.date,
-    quantity_scaled: input.quantity,
+    quantity_scaled: Math.abs(input.quantity) * sign,
     price_scaled: input.price,
     price_currency: input.price == null ? null : input.priceCurrency,
-    paid_minor: input.paid,
+    // Sell reduces cost basis by the amount entered (cost removed / proceeds booked as −paid).
+    paid_minor: Math.abs(input.paid) * sign,
     paid_currency: input.paidCurrency,
     series: input.series?.trim().toUpperCase() || null,
     estimated: input.estimated ? 1 : 0,

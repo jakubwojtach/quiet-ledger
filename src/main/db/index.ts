@@ -5,7 +5,13 @@ import { DEFAULT_CATEGORIES_SQL, SCHEMA_SQL } from './schema'
 import { ensureRealAssets, purgeDemoSeed } from './ensureRealData'
 import { describeDatabase } from '../userDataDir'
 import type { DatabaseInfo } from '@shared/dataDirs'
-import type { Asset, AssetClass, IncomeAllocation, IncomeEntry } from '@shared/types'
+import type {
+  Asset,
+  AssetClass,
+  IncomeAllocation,
+  IncomeEntry,
+  IncomeStatus
+} from '@shared/types'
 import { QUANTITY_SCALE } from '@shared/types'
 import { randomUUID } from 'crypto'
 
@@ -37,6 +43,7 @@ export function initDatabase(): Database.Database {
   db.exec(SCHEMA_SQL)
   ensureAssetColumns(db)
   ensureExpenseColumns(db)
+  ensureIncomeColumns(db)
 
   const categoryCount = db.prepare('SELECT COUNT(*) AS c FROM expense_categories').get() as {
     c: number
@@ -50,13 +57,13 @@ export function initDatabase(): Database.Database {
 
   const info = describeDatabase(dbPath)
   const names = db.prepare('SELECT name FROM assets ORDER BY name').all() as { name: string }[]
-  console.log(`[savings-net-worth] appId=${info.appId}`)
-  console.log(`[savings-net-worth] SQLite ${info.dbPath}`)
+  console.log(`[quiet-ledger] appId=${info.appId}`)
+  console.log(`[quiet-ledger] SQLite ${info.dbPath}`)
   console.log(
-    `[savings-net-worth] assets: ${names.length === 0 ? '(none)' : names.map((row) => row.name).join(', ')}`
+    `[quiet-ledger] assets: ${names.length === 0 ? '(none)' : names.map((row) => row.name).join(', ')}`
   )
   for (const legacy of info.legacyDbPaths) {
-    console.warn(`[savings-net-worth] Legacy SQLite still on disk (not opened): ${legacy}`)
+    console.warn(`[quiet-ledger] Legacy SQLite still on disk (not opened): ${legacy}`)
   }
 
   return db
@@ -67,9 +74,19 @@ function ensureAssetColumns(database: Database.Database): void {
   const cols = new Set(
     (database.prepare('PRAGMA table_info(assets)').all() as { name: string }[]).map((c) => c.name)
   )
-  for (const name of ['value_source', 'account']) {
+  for (const name of [
+    'value_source',
+    'account',
+    'address',
+    'listing_url',
+    'car_make',
+    'car_model',
+    'car_trim'
+  ]) {
     if (!cols.has(name)) database.exec(`ALTER TABLE assets ADD COLUMN ${name} TEXT`)
   }
+  if (!cols.has('area_m2')) database.exec(`ALTER TABLE assets ADD COLUMN area_m2 REAL`)
+  if (!cols.has('car_year')) database.exec(`ALTER TABLE assets ADD COLUMN car_year INTEGER`)
 }
 
 function ensureExpenseColumns(database: Database.Database): void {
@@ -85,6 +102,35 @@ function ensureExpenseColumns(database: Database.Database): void {
   }
   if (!cols.has('due_date')) {
     database.exec(`ALTER TABLE expense_entries ADD COLUMN due_date TEXT`)
+  }
+}
+
+function ensureIncomeColumns(database: Database.Database): void {
+  const cols = new Set(
+    (database.prepare('PRAGMA table_info(income_entries)').all() as { name: string }[]).map(
+      (c) => c.name
+    )
+  )
+  if (!cols.has('date')) {
+    database.exec(`ALTER TABLE income_entries ADD COLUMN date TEXT`)
+    database.exec(`UPDATE income_entries SET date = month || '-01' WHERE date IS NULL`)
+  }
+  if (!cols.has('status')) {
+    database.exec(
+      `ALTER TABLE income_entries ADD COLUMN status TEXT NOT NULL DEFAULT 'received'`
+    )
+  }
+  if (!cols.has('fx_rate_scaled')) {
+    database.exec(
+      `ALTER TABLE income_entries ADD COLUMN fx_rate_scaled INTEGER NOT NULL DEFAULT 10000`
+    )
+  }
+  if (!cols.has('pln_amount_minor')) {
+    database.exec(`ALTER TABLE income_entries ADD COLUMN pln_amount_minor INTEGER`)
+    // Existing rows were treated as PLN cashflow amounts
+    database.exec(
+      `UPDATE income_entries SET pln_amount_minor = amount_minor WHERE pln_amount_minor IS NULL`
+    )
   }
 }
 
@@ -113,6 +159,12 @@ type AssetRow = {
   currency: string | null
   valued_on: string | null
   value_source: string | null
+  address: string | null
+  area_m2: number | null
+  car_make: string | null
+  car_model: string | null
+  car_year: number | null
+  car_trim: string | null
   account: string | null
   lot_count: number
   created_at: string
@@ -173,7 +225,13 @@ function rowToAsset(row: AssetRow): Asset {
       }
     case 'apartment':
     case 'land':
-    case 'car':
+    case 'car': {
+      const valueSource =
+        row.value_source === 'estimate' ||
+        row.value_source === 'otodom' ||
+        row.value_source === 'otomoto'
+          ? row.value_source
+          : 'manual'
       return {
         ...base,
         class: row.class,
@@ -181,8 +239,21 @@ function rowToAsset(row: AssetRow): Asset {
         currency: row.currency!,
         valuedOn: row.valued_on!,
         costBasisMinor: row.cost_basis_minor,
-        valueSource: row.value_source === 'estimate' ? 'estimate' : 'manual'
+        valueSource,
+        address: row.class === 'car' ? null : (row.address ?? null),
+        areaM2:
+          row.class === 'car' || row.area_m2 == null || !Number.isFinite(row.area_m2)
+            ? null
+            : row.area_m2,
+        make: row.class === 'car' ? (row.car_make ?? null) : null,
+        model: row.class === 'car' ? (row.car_model ?? null) : null,
+        year:
+          row.class === 'car' && row.car_year != null && Number.isFinite(row.car_year)
+            ? row.car_year
+            : null,
+        trim: row.class === 'car' ? (row.car_trim ?? null) : null
       }
+    }
     default: {
       const _exhaustive: never = row.class
       throw new Error(`Unknown asset class: ${_exhaustive}`)
@@ -200,18 +271,55 @@ export function getAssetById(id: string): Asset | null {
   return row ? rowToAsset(row) : null
 }
 
+type IncomeRow = {
+  id: string
+  month: string
+  date: string | null
+  amount_minor: number
+  currency: string
+  fx_rate_scaled: number | null
+  pln_amount_minor: number | null
+  status: string | null
+  note: string | null
+  created_at: string
+}
+
+function mapIncomeStatus(status: string | null | undefined): IncomeStatus {
+  return status === 'expected' ? 'expected' : 'received'
+}
+
+function mapIncomeRow(
+  e: IncomeRow,
+  allocations: IncomeAllocation[]
+): IncomeEntry {
+  const date = e.date ?? `${e.month}-01`
+  const fxRateScaled = e.fx_rate_scaled ?? 10_000
+  const plnAmountMinor = e.pln_amount_minor ?? e.amount_minor
+  return {
+    id: e.id,
+    month: e.month,
+    date,
+    amountMinor: e.amount_minor,
+    currency: e.currency,
+    fxRateScaled,
+    plnAmountMinor,
+    status: mapIncomeStatus(e.status),
+    note: e.note,
+    allocations,
+    createdAt: e.created_at
+  }
+}
+
 export function listIncomeEntries(): IncomeEntry[] {
   const database = getDb()
   const entries = database
-    .prepare('SELECT * FROM income_entries ORDER BY month DESC, created_at DESC')
-    .all() as Array<{
-    id: string
-    month: string
-    amount_minor: number
-    currency: string
-    note: string | null
-    created_at: string
-  }>
+    .prepare(
+      `SELECT id, month, date, amount_minor, currency, fx_rate_scaled, pln_amount_minor,
+              status, note, created_at
+       FROM income_entries
+       ORDER BY COALESCE(date, month || '-01') DESC, created_at DESC`
+    )
+    .all() as IncomeRow[]
 
   const allocStmt = database.prepare(
     'SELECT asset_id, amount_minor FROM income_allocations WHERE income_id = ?'
@@ -226,32 +334,34 @@ export function listIncomeEntries(): IncomeEntry[] {
         amountMinor: a.amount_minor
       })
     )
-    return {
-      id: e.id,
-      month: e.month,
-      amountMinor: e.amount_minor,
-      currency: e.currency,
-      note: e.note,
-      allocations,
-      createdAt: e.created_at
-    }
+    return mapIncomeRow(e, allocations)
   })
 }
 
 export function createIncomeEntry(input: {
   month: string
+  date: string
   amountMinor: number
   currency: string
+  fxRateScaled: number
+  plnAmountMinor: number
+  status?: IncomeStatus
   note?: string | null
   allocations: IncomeAllocation[]
 }): IncomeEntry {
   const database = getDb()
   const id = randomUUID()
   const createdAt = new Date().toISOString()
+  const status: IncomeStatus = input.status === 'expected' ? 'expected' : 'received'
 
   const insertIncome = database.prepare(`
-    INSERT INTO income_entries (id, month, amount_minor, currency, note, created_at)
-    VALUES (@id, @month, @amountMinor, @currency, @note, @createdAt)
+    INSERT INTO income_entries (
+      id, month, date, amount_minor, currency, fx_rate_scaled, pln_amount_minor,
+      status, note, created_at
+    ) VALUES (
+      @id, @month, @date, @amountMinor, @currency, @fxRateScaled, @plnAmountMinor,
+      @status, @note, @createdAt
+    )
   `)
   const insertAlloc = database.prepare(`
     INSERT INTO income_allocations (id, income_id, asset_id, amount_minor)
@@ -262,8 +372,12 @@ export function createIncomeEntry(input: {
     insertIncome.run({
       id,
       month: input.month,
+      date: input.date,
       amountMinor: input.amountMinor,
       currency: input.currency,
+      fxRateScaled: input.fxRateScaled,
+      plnAmountMinor: input.plnAmountMinor,
+      status,
       note: input.note ?? null,
       createdAt
     })
@@ -281,8 +395,12 @@ export function createIncomeEntry(input: {
   return {
     id,
     month: input.month,
+    date: input.date,
     amountMinor: input.amountMinor,
     currency: input.currency,
+    fxRateScaled: input.fxRateScaled,
+    plnAmountMinor: input.plnAmountMinor,
+    status,
     note: input.note ?? null,
     allocations: input.allocations,
     createdAt
@@ -292,43 +410,49 @@ export function createIncomeEntry(input: {
 export function updateIncomeEntry(input: {
   id: string
   month: string
+  date: string
   amountMinor: number
   currency: string
+  fxRateScaled: number
+  plnAmountMinor: number
+  status?: IncomeStatus
   note?: string | null
 }): IncomeEntry {
   const database = getDb()
   const existing = database
     .prepare(
-      `SELECT id, month, amount_minor, currency, note, created_at
+      `SELECT id, month, date, amount_minor, currency, fx_rate_scaled, pln_amount_minor,
+              status, note, created_at
        FROM income_entries WHERE id = ?`
     )
-    .get(input.id) as
-    | {
-        id: string
-        month: string
-        amount_minor: number
-        currency: string
-        note: string | null
-        created_at: string
-      }
-    | undefined
+    .get(input.id) as IncomeRow | undefined
 
   if (!existing) throw new Error(`Income not found: ${input.id}`)
+
+  const status: IncomeStatus = input.status === 'expected' ? 'expected' : 'received'
 
   database
     .prepare(
       `UPDATE income_entries SET
         month = @month,
+        date = @date,
         amount_minor = @amountMinor,
         currency = @currency,
+        fx_rate_scaled = @fxRateScaled,
+        pln_amount_minor = @plnAmountMinor,
+        status = @status,
         note = @note
       WHERE id = @id`
     )
     .run({
       id: input.id,
       month: input.month,
+      date: input.date,
       amountMinor: input.amountMinor,
       currency: input.currency,
+      fxRateScaled: input.fxRateScaled,
+      plnAmountMinor: input.plnAmountMinor,
+      status,
       note: input.note ?? null
     })
 
@@ -341,8 +465,12 @@ export function updateIncomeEntry(input: {
   return {
     id: input.id,
     month: input.month,
+    date: input.date,
     amountMinor: input.amountMinor,
     currency: input.currency,
+    fxRateScaled: input.fxRateScaled,
+    plnAmountMinor: input.plnAmountMinor,
+    status,
     note: input.note ?? null,
     allocations: allocRows.map((a) => ({
       assetId: a.asset_id,

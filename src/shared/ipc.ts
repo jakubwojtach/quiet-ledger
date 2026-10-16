@@ -22,12 +22,23 @@ export const IpcChannels = {
   createExpense: 'networth:createExpense',
   updateExpense: 'networth:updateExpense',
   deleteExpense: 'networth:deleteExpense',
+  copyExpensesToMonth: 'networth:copyExpensesToMonth',
+  getFxRate: 'networth:getFxRate',
   getDatabaseInfo: 'networth:getDatabaseInfo',
   listLots: 'networth:listLots',
   upsertLot: 'networth:upsertLot',
   deleteLot: 'networth:deleteLot',
+  listMovements: 'networth:listMovements',
+  upsertMovement: 'networth:upsertMovement',
+  deleteMovement: 'networth:deleteMovement',
   getNetWorthHistory: 'networth:getNetWorthHistory',
-  getCashflowHistory: 'networth:getCashflowHistory'
+  getCashflowHistory: 'networth:getCashflowHistory',
+  getIntegrations: 'networth:getIntegrations',
+  setIntegrations: 'networth:setIntegrations',
+  setIntegrationSecret: 'networth:setIntegrationSecret',
+  hasIntegrationSecret: 'networth:hasIntegrationSecret',
+  clearIntegrationSecret: 'networth:clearIntegrationSecret',
+  testIntegration: 'networth:testIntegration'
 } as const
 
 export type IpcChannel = (typeof IpcChannels)[keyof typeof IpcChannels]
@@ -45,7 +56,47 @@ const optionalMoneyMajorToMinor = z
   .nullable()
   .optional()
   .transform((n) => (n == null ? null : majorToMinor(n)))
-const valueSourceSchema = z.enum(['estimate', 'manual']).default('manual')
+const valueSourceSchema = z.enum(['estimate', 'manual', 'otodom', 'otomoto']).default('manual')
+const addressSchema = z
+  .union([z.string(), z.null()])
+  .optional()
+  .transform((v) => {
+    const trimmed = (v ?? '').trim()
+    if (!trimmed) return null
+    if (trimmed.length > 200) throw new Error('Address is too long')
+    return trimmed
+  })
+const areaM2Schema = z
+  .union([z.number(), z.null()])
+  .optional()
+  .transform((v) => {
+    if (v == null) return null
+    if (!Number.isFinite(v) || v <= 0 || v > 1_000_000) {
+      throw new Error('Area must be a positive number of m²')
+    }
+    return Math.round(v * 100) / 100
+  })
+const shortTextSchema = (label: string, max: number) =>
+  z
+    .union([z.string(), z.null()])
+    .optional()
+    .transform((v) => {
+      const trimmed = (v ?? '').trim()
+      if (!trimmed) return null
+      if (trimmed.length > max) throw new Error(`${label} is too long`)
+      return trimmed
+    })
+const carYearSchema = z
+  .union([z.number(), z.null()])
+  .optional()
+  .transform((v) => {
+    if (v == null) return null
+    const y = Math.round(v)
+    if (!Number.isFinite(y) || y < 1980 || y > 2100) {
+      throw new Error('Year must be between 1980 and 2100')
+    }
+    return y
+  })
 const quantityToScaled = z
   .number()
   .positive()
@@ -59,11 +110,16 @@ export const idRequestSchema = z.object({
   id: z.string().uuid()
 })
 
+const incomeStatusSchema = z.enum(['expected', 'received']).default('received')
+
 export const createIncomeRequestSchema = z.object({
   month: monthSchema,
-  /** Major units from UI → minor */
+  /** Settlement / expected date — drives FX lookup */
+  date: dateSchema,
+  /** Major units from UI → minor (in `currency`) */
   amount: moneyMajorToMinor,
   currency: currencySchema.default('PLN'),
+  status: incomeStatusSchema,
   note: z.string().nullable().optional(),
   allocations: z
     .array(
@@ -78,9 +134,16 @@ export const createIncomeRequestSchema = z.object({
 export const updateIncomeRequestSchema = z.object({
   id: z.string().uuid(),
   month: monthSchema,
+  date: dateSchema,
   amount: moneyMajorToMinor,
   currency: currencySchema.default('PLN'),
+  status: incomeStatusSchema,
   note: z.string().nullable().optional()
+})
+
+export const getFxRateRequestSchema = z.object({
+  currency: currencySchema,
+  date: dateSchema
 })
 
 export const getMonthSummaryRequestSchema = z.object({
@@ -102,6 +165,15 @@ export const createExpenseRequestSchema = z.object({
 
 export const updateExpenseRequestSchema = createExpenseRequestSchema.extend({
   id: z.string().uuid()
+})
+
+export const copyExpensesToMonthRequestSchema = z.object({
+  fromMonth: monthSchema,
+  toMonth: monthSchema,
+  /** Copy only these expense ids (preferred). */
+  expenseIds: z.array(z.string().uuid()).optional(),
+  /** Legacy / bulk by category name when ids omitted. */
+  categoryNames: z.array(z.string().min(1)).optional()
 })
 
 const assetBase = {
@@ -157,7 +229,9 @@ export const upsertAssetRequestSchema = z.discriminatedUnion('class', [
     currency: currencySchema.default('PLN'),
     valuedOn: dateSchema,
     costBasis: optionalMoneyMajorToMinor,
-    valueSource: valueSourceSchema
+    valueSource: valueSourceSchema,
+    address: addressSchema,
+    areaM2: areaM2Schema
   }),
   z.object({
     ...assetBase,
@@ -166,7 +240,9 @@ export const upsertAssetRequestSchema = z.discriminatedUnion('class', [
     currency: currencySchema.default('PLN'),
     valuedOn: dateSchema,
     costBasis: optionalMoneyMajorToMinor,
-    valueSource: valueSourceSchema
+    valueSource: valueSourceSchema,
+    address: addressSchema,
+    areaM2: areaM2Schema
   }),
   z.object({
     ...assetBase,
@@ -175,7 +251,11 @@ export const upsertAssetRequestSchema = z.discriminatedUnion('class', [
     currency: currencySchema.default('PLN'),
     valuedOn: dateSchema,
     costBasis: optionalMoneyMajorToMinor,
-    valueSource: valueSourceSchema
+    valueSource: valueSourceSchema,
+    make: shortTextSchema('Make', 40),
+    model: shortTextSchema('Model', 40),
+    year: carYearSchema,
+    trim: shortTextSchema('Trim', 40)
   })
 ])
 
@@ -198,8 +278,10 @@ export const upsertLotRequestSchema = z.object({
   id: z.string().uuid().optional(),
   assetId: z.string().uuid(),
   date: dateSchema,
-  /** Units, or number of bonds */
+  /** Units, or number of bonds (always positive in the form; sell flips sign in main). */
   quantity: quantityToScaled,
+  /** buy = contribution / purchase; sell = withdrawal / redeem (retirement & ETF). */
+  side: z.enum(['buy', 'sell']).default('buy'),
   /** Price per unit in major units of priceCurrency */
   price: z
     .number()
@@ -216,7 +298,60 @@ export const upsertLotRequestSchema = z.object({
   note: z.string().nullable().optional()
 })
 
+export const listMovementsRequestSchema = z.object({
+  assetId: z.string().uuid()
+})
+
+export const upsertMovementRequestSchema = z.object({
+  id: z.string().uuid().optional(),
+  assetId: z.string().uuid(),
+  date: dateSchema,
+  kind: z.enum(['deposit', 'withdrawal']),
+  /** Major units from UI → minor (always positive). */
+  amount: z
+    .number()
+    .finite()
+    .positive()
+    .transform((n) => majorToMinor(n)),
+  currency: currencySchema,
+  note: z.string().nullable().optional()
+})
+
 export const emptyRequestSchema = z.object({}).strict().optional()
+
+const integrationIdSchema = z.enum([
+  'yahoo_equity',
+  'analizy_funds',
+  'frankfurter_fx',
+  'property_catalog',
+  'property_otodom',
+  'vehicle_otomoto'
+])
+
+const integrationStateSchema = z.object({
+  enabled: z.boolean(),
+  mode: z.enum(['manual', 'auto'])
+})
+
+export const setIntegrationsRequestSchema = z.object({
+  integrations: z.object({
+    yahoo_equity: integrationStateSchema,
+    analizy_funds: integrationStateSchema,
+    frankfurter_fx: integrationStateSchema,
+    property_catalog: integrationStateSchema,
+    property_otodom: integrationStateSchema,
+    vehicle_otomoto: integrationStateSchema
+  })
+})
+
+export const setIntegrationSecretRequestSchema = z.object({
+  id: integrationIdSchema,
+  secret: z.string().min(1).max(2048)
+})
+
+export const integrationIdRequestSchema = z.object({
+  id: integrationIdSchema
+})
 
 export const assetClassSchema = z.enum(ASSET_CLASSES)
 
@@ -240,12 +375,23 @@ export const IpcRequestSchemas = {
   [IpcChannels.createExpense]: createExpenseRequestSchema,
   [IpcChannels.updateExpense]: updateExpenseRequestSchema,
   [IpcChannels.deleteExpense]: idRequestSchema,
+  [IpcChannels.copyExpensesToMonth]: copyExpensesToMonthRequestSchema,
+  [IpcChannels.getFxRate]: getFxRateRequestSchema,
   [IpcChannels.getDatabaseInfo]: emptyRequestSchema,
   [IpcChannels.listLots]: listLotsRequestSchema,
   [IpcChannels.upsertLot]: upsertLotRequestSchema,
   [IpcChannels.deleteLot]: idRequestSchema,
+  [IpcChannels.listMovements]: listMovementsRequestSchema,
+  [IpcChannels.upsertMovement]: upsertMovementRequestSchema,
+  [IpcChannels.deleteMovement]: idRequestSchema,
   [IpcChannels.getNetWorthHistory]: emptyRequestSchema,
-  [IpcChannels.getCashflowHistory]: emptyRequestSchema
+  [IpcChannels.getCashflowHistory]: emptyRequestSchema,
+  [IpcChannels.getIntegrations]: emptyRequestSchema,
+  [IpcChannels.setIntegrations]: setIntegrationsRequestSchema,
+  [IpcChannels.setIntegrationSecret]: setIntegrationSecretRequestSchema,
+  [IpcChannels.hasIntegrationSecret]: integrationIdRequestSchema,
+  [IpcChannels.clearIntegrationSecret]: integrationIdRequestSchema,
+  [IpcChannels.testIntegration]: integrationIdRequestSchema
 } as const
 
 export type GetAssetRequest = z.infer<typeof getAssetRequestSchema>
@@ -253,8 +399,10 @@ export type IdRequest = z.infer<typeof idRequestSchema>
 /** Input shape before transform (UI / callers) */
 export type CreateIncomeRequest = z.input<typeof createIncomeRequestSchema>
 export type UpdateIncomeRequest = z.input<typeof updateIncomeRequestSchema>
+export type GetFxRateRequest = z.input<typeof getFxRateRequestSchema>
 export type CreateExpenseRequest = z.input<typeof createExpenseRequestSchema>
 export type UpdateExpenseRequest = z.input<typeof updateExpenseRequestSchema>
+export type CopyExpensesToMonthRequest = z.input<typeof copyExpensesToMonthRequestSchema>
 export type UpsertAssetRequest = z.input<typeof upsertAssetRequestSchema>
 export type UpsertLiabilityRequest = z.input<typeof upsertLiabilityRequestSchema>
 export type GetMonthSummaryRequest = z.infer<typeof getMonthSummaryRequestSchema>
@@ -267,3 +415,9 @@ export type UpdateExpenseParsed = z.output<typeof updateExpenseRequestSchema>
 export type ListLotsRequest = z.infer<typeof listLotsRequestSchema>
 export type UpsertLotRequest = z.input<typeof upsertLotRequestSchema>
 export type UpsertLotParsed = z.output<typeof upsertLotRequestSchema>
+export type ListMovementsRequest = z.infer<typeof listMovementsRequestSchema>
+export type UpsertMovementRequest = z.input<typeof upsertMovementRequestSchema>
+export type UpsertMovementParsed = z.output<typeof upsertMovementRequestSchema>
+export type SetIntegrationsRequest = z.infer<typeof setIntegrationsRequestSchema>
+export type SetIntegrationSecretRequest = z.infer<typeof setIntegrationSecretRequestSchema>
+export type IntegrationIdRequest = z.infer<typeof integrationIdRequestSchema>

@@ -7,6 +7,7 @@ export type LocalEventName =
   | 'dashboard.updated'
   | 'expense.created'
   | 'expense.updated'
+  | 'expense.copied'
   | 'income.created'
   | 'income.updated'
   | 'month.summary'

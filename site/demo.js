@@ -24,6 +24,46 @@
   })
   setTheme(currentTheme())
 
+  /* —— Latest GitHub release download links —— */
+  ;(function wireLatestRelease() {
+    var label = document.getElementById('release-label')
+    var mac = document.getElementById('download-mac')
+    var win = document.getElementById('download-win')
+    var api = 'https://api.github.com/repos/jakubwojtach/quiet-ledger/releases/latest'
+    fetch(api)
+      .then(function (r) {
+        if (!r.ok) throw new Error('release ' + r.status)
+        return r.json()
+      })
+      .then(function (rel) {
+        if (label && rel.tag_name) {
+          label.textContent = rel.tag_name
+          label.href = rel.html_url || label.href
+        }
+        var assets = rel.assets || []
+        function find(re) {
+          for (var i = 0; i < assets.length; i++) {
+            if (re.test(assets[i].name)) return assets[i].browser_download_url
+          }
+          return null
+        }
+        var macUrl =
+          find(/^quiet-ledger-mac\.dmg$/i) ||
+          find(/\.dmg$/i) ||
+          (mac && mac.getAttribute('href'))
+        var winUrl =
+          find(/^quiet-ledger-win-setup\.exe$/i) ||
+          find(/-setup\.exe$/i) ||
+          find(/\.exe$/i) ||
+          (win && win.getAttribute('href'))
+        if (mac && macUrl) mac.href = macUrl
+        if (win && winUrl) win.href = winUrl
+      })
+      .catch(function () {
+        /* keep static latest/download fallbacks */
+      })
+  })()
+
   /* —— Lottie splash —— */
   var el = document.getElementById('hero-lottie')
   document.documentElement.classList.add('ready')

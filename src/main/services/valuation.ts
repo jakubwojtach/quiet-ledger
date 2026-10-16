@@ -3,6 +3,7 @@ import { recordNetWorthSnapshot } from '../db/analytics'
 import { listLiabilities } from '../db/liabilities'
 import { listLots } from '../db/lots'
 import { convertToPlnMinor } from './fx'
+import { isLive } from './integrations/registry'
 import { getEquityPrice, getFundNav } from './prices'
 import { emitLocalEvent } from '../hooks/localEvents'
 import {
@@ -18,13 +19,17 @@ import {
   type ValuedLot
 } from '@shared/types'
 import { catalogEstimateFor, type CatalogEstimate } from '@shared/valuationFormulas'
+import { getOtodomCompsValue } from './otodom'
+import { getOtomotoCompsValue } from './otomoto'
 
 type MarketValue = Omit<ValuedAsset, 'costBasisPlnMinor' | 'gainPlnMinor' | 'gainPercent'>
 
 function activeEstimate(
   asset: Extract<Asset, { class: 'apartment' | 'land' | 'car' }>
 ): CatalogEstimate | null {
-  return asset.valueSource === 'estimate' ? catalogEstimateFor(asset.id) : null
+  if (asset.valueSource !== 'estimate') return null
+  if (!isLive('property_catalog')) return null
+  return catalogEstimateFor(asset.id)
 }
 
 async function valueAsset(asset: Asset): Promise<ValuedAsset> {
@@ -142,6 +147,84 @@ async function valueAssetMarket(asset: Asset): Promise<MarketValue> {
     case 'apartment':
     case 'land':
     case 'car': {
+      if (
+        (asset.class === 'apartment' || asset.class === 'land') &&
+        asset.valueSource === 'otodom' &&
+        asset.address &&
+        asset.areaM2 != null &&
+        asset.areaM2 > 0
+      ) {
+        const quote = await getOtodomCompsValue({
+          class: asset.class,
+          address: asset.address,
+          areaM2: asset.areaM2
+        })
+        if (!quote.missing) {
+          const nativeValueMinor = Math.round(quote.price * 100)
+          const { plnMinor, stale } = await convertToPlnMinor(nativeValueMinor, quote.currency)
+          return {
+            asset,
+            nativeValueMinor,
+            nativeCurrency: quote.currency,
+            plnValueMinor: plnMinor,
+            unitPrice: quote.plnPerM2,
+            lastUpdated: quote.fetchedAt,
+            priceStale: quote.stale || stale,
+            priceMissing: false
+          }
+        }
+        // Fall back to saved manual worth when comps fail.
+        const { plnMinor } = await convertToPlnMinor(asset.valueMinor, asset.currency)
+        return {
+          asset,
+          nativeValueMinor: asset.valueMinor,
+          nativeCurrency: asset.currency,
+          plnValueMinor: plnMinor,
+          unitPrice: null,
+          lastUpdated: asset.valuedOn,
+          priceStale: true,
+          priceMissing: true
+        }
+      }
+      if (
+        asset.class === 'car' &&
+        asset.valueSource === 'otomoto' &&
+        asset.make &&
+        asset.model &&
+        asset.year != null
+      ) {
+        const quote = await getOtomotoCompsValue({
+          make: asset.make,
+          model: asset.model,
+          year: asset.year,
+          trim: asset.trim
+        })
+        if (!quote.missing) {
+          const nativeValueMinor = Math.round(quote.price * 100)
+          const { plnMinor, stale } = await convertToPlnMinor(nativeValueMinor, quote.currency)
+          return {
+            asset,
+            nativeValueMinor,
+            nativeCurrency: quote.currency,
+            plnValueMinor: plnMinor,
+            unitPrice: null,
+            lastUpdated: quote.fetchedAt,
+            priceStale: quote.stale || stale,
+            priceMissing: false
+          }
+        }
+        const { plnMinor } = await convertToPlnMinor(asset.valueMinor, asset.currency)
+        return {
+          asset,
+          nativeValueMinor: asset.valueMinor,
+          nativeCurrency: asset.currency,
+          plnValueMinor: plnMinor,
+          unitPrice: null,
+          lastUpdated: asset.valuedOn,
+          priceStale: true,
+          priceMissing: true
+        }
+      }
       const estimate = activeEstimate(asset)
       const nativeValueMinor = estimate ? estimate.worthMinor : asset.valueMinor
       const { plnMinor, stale } = await convertToPlnMinor(nativeValueMinor, asset.currency)

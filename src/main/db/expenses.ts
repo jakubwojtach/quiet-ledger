@@ -2,6 +2,23 @@ import { randomUUID } from 'crypto'
 import type { ExpenseCategory, ExpenseEntry, ExpenseStatus } from '@shared/types'
 import { getDb } from './index'
 
+/** Shift a YYYY-MM-DD by calendar months, clamping the day into the target month. */
+function shiftDateByMonths(isoDate: string, delta: number): string {
+  const [y, m, d] = isoDate.split('-').map(Number)
+  const cursor = new Date(Date.UTC(y, m - 1 + delta, 1))
+  const lastDay = new Date(
+    Date.UTC(cursor.getUTCFullYear(), cursor.getUTCMonth() + 1, 0)
+  ).getUTCDate()
+  const day = Math.min(d, lastDay)
+  return `${cursor.getUTCFullYear()}-${String(cursor.getUTCMonth() + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`
+}
+
+function monthDelta(fromMonth: string, toMonth: string): number {
+  const [fy, fm] = fromMonth.split('-').map(Number)
+  const [ty, tm] = toMonth.split('-').map(Number)
+  return (ty - fy) * 12 + (tm - fm)
+}
+
 type ExpenseRow = {
   id: string
   category_id: string
@@ -159,4 +176,69 @@ export function updateExpenseEntry(
 export function deleteExpenseEntry(id: string): { ok: true } {
   getDb().prepare('DELETE FROM expense_entries WHERE id = ?').run(id)
   return { ok: true }
+}
+
+export type CopyExpensesResult = {
+  copied: number
+  skipped: number
+  toMonth: string
+}
+
+/**
+ * Copy expenses from one month into another (same note/amount/category).
+ * Land as `due` with dates shifted; skip rows that already exist in the target month.
+ */
+export function copyExpensesToMonth(input: {
+  fromMonth: string
+  toMonth: string
+  /** When set, only these expense ids. */
+  expenseIds?: string[]
+  /** When set (and ids omitted), only these category names. */
+  categoryNames?: string[]
+}): CopyExpensesResult {
+  if (input.fromMonth === input.toMonth) {
+    throw new Error('Source and target month must differ')
+  }
+  const delta = monthDelta(input.fromMonth, input.toMonth)
+  if (delta === 0) throw new Error('Source and target month must differ')
+
+  const idSet =
+    input.expenseIds && input.expenseIds.length > 0 ? new Set(input.expenseIds) : null
+  const source = listExpensesForMonth(input.fromMonth).filter((e) => {
+    if (idSet) return idSet.has(e.id)
+    if (!input.categoryNames || input.categoryNames.length === 0) return true
+    return input.categoryNames.includes(e.categoryName)
+  })
+  const existing = listExpensesForMonth(input.toMonth)
+  const existingKeys = new Set(
+    existing.map(
+      (e) => `${e.categoryId}\0${e.note ?? ''}\0${e.amountMinor}\0${e.currency}`
+    )
+  )
+
+  let copied = 0
+  let skipped = 0
+  for (const e of source) {
+    const key = `${e.categoryId}\0${e.note ?? ''}\0${e.amountMinor}\0${e.currency}`
+    if (existingKeys.has(key)) {
+      skipped += 1
+      continue
+    }
+    const date = shiftDateByMonths(e.date, delta)
+    const dueDate = shiftDateByMonths(e.dueDate ?? e.date, delta)
+    createExpenseEntry({
+      categoryId: e.categoryId,
+      date,
+      amountMinor: e.amountMinor,
+      currency: e.currency,
+      note: e.note,
+      liabilityId: e.liabilityId,
+      status: 'due',
+      dueDate
+    })
+    existingKeys.add(key)
+    copied += 1
+  }
+
+  return { copied, skipped, toMonth: input.toMonth }
 }

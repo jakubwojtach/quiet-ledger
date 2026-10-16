@@ -1,7 +1,9 @@
 import { useEffect, useState, type JSX } from 'react'
 import { Info, X } from 'lucide-react'
+import { isIntegrationLive } from '@shared/integrations'
 import { catalogEstimateFor } from '@shared/valuationFormulas'
 import type { Asset, AssetClass, ValuedAsset } from '@shared/types'
+import { usePreferences } from '@renderer/lib/preferences'
 import { useLocale } from '@renderer/lib/i18n/locale'
 import { cn } from '@renderer/lib/utils'
 
@@ -14,36 +16,65 @@ function storageKey(assetClass: AssetClass): string {
 function sourceMessage(
   asset: Asset,
   valued: ValuedAsset,
+  integrations: ReturnType<typeof usePreferences>['prefs']['integrations'],
   t: (key: string, vars?: Record<string, string | number>) => string
 ): string {
   switch (asset.class) {
-    case 'etf':
-      return t('source.etf', {
-        fx: valued.nativeCurrency !== 'PLN' ? t('source.etfFx') : ''
-      }).trim()
+    case 'etf': {
+      if (!isIntegrationLive(integrations, 'yahoo_equity')) {
+        return t('source.etfOff')
+      }
+      const fxNote =
+        valued.nativeCurrency !== 'PLN'
+          ? isIntegrationLive(integrations, 'frankfurter_fx')
+            ? t('source.etfFx')
+            : t('source.etfFxOff')
+          : ''
+      return t('source.etf', { fx: fxNote }).trim()
+    }
     case 'bond':
       return t('source.bond', {
         worth:
           asset.statementValueMinor != null ? t('source.bondStatement') : t('source.bondUnit')
       })
     case 'retirement':
-      return asset.fundCode
-        ? t('source.retirementFund', { code: asset.fundCode })
-        : t('source.retirementManual')
+      if (asset.fundCode) {
+        if (!isIntegrationLive(integrations, 'analizy_funds')) {
+          return t('source.retirementFundOff', { code: asset.fundCode })
+        }
+        return t('source.retirementFund', { code: asset.fundCode })
+      }
+      return t('source.retirementManual')
     case 'savings_usd':
       return t('source.savingsUsd')
     case 'savings_pln':
       return t('source.savingsPln')
     case 'apartment':
     case 'land': {
+      if (asset.valueSource === 'otodom') {
+        if (!isIntegrationLive(integrations, 'property_otodom')) {
+          return t('source.propertyOtodomOff')
+        }
+        return t('source.propertyOtodom')
+      }
       if (asset.valueSource === 'estimate') {
+        if (!isIntegrationLive(integrations, 'property_catalog')) {
+          return t('source.propertyCatalogOff')
+        }
         const estimate = catalogEstimateFor(asset.id)
         if (estimate) return estimate.catalog.source
       }
       return t('source.propertyManual')
     }
-    case 'car':
+    case 'car': {
+      if (asset.valueSource === 'otomoto') {
+        if (!isIntegrationLive(integrations, 'vehicle_otomoto')) {
+          return t('source.carOtomotoOff')
+        }
+        return t('source.carOtomoto')
+      }
       return t('source.car')
+    }
     default:
       return t('source.default')
   }
@@ -59,6 +90,7 @@ export function SourceInfoBanner({
   className?: string
 }): JSX.Element | null {
   const { t } = useLocale()
+  const { prefs } = usePreferences()
   const key = storageKey(asset.class)
   const [open, setOpen] = useState(true)
 
@@ -86,7 +118,9 @@ export function SourceInfoBanner({
         <p className="text-xs font-semibold uppercase tracking-[0.14em] text-forest-soft">
           {t('source.title')}
         </p>
-        <p className="mt-1 leading-relaxed text-ink-muted">{sourceMessage(asset, valued, t)}</p>
+        <p className="mt-1 leading-relaxed text-ink-muted">
+          {sourceMessage(asset, valued, prefs.integrations, t)}
+        </p>
       </div>
       <button
         type="button"

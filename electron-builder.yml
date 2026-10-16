@@ -1,5 +1,5 @@
-appId: com.savings.networth
-productName: Savings Net Worth
+appId: com.quietledger.app
+productName: Quiet Ledger
 directories:
   buildResources: build
 files:
@@ -12,7 +12,7 @@ files:
 asarUnpack:
   - resources/**
 win:
-  executableName: savings-net-worth
+  executableName: quiet-ledger
 nsis:
   artifactName: ${name}-${version}-setup.${ext}
   shortcutName: ${productName}

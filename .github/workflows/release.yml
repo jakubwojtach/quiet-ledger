@@ -3,6 +3,7 @@ name: Release builds
 on:
   workflow_dispatch:
   push:
+    branches: [master, main]
     tags:
       - 'v*'
 
@@ -22,9 +23,26 @@ jobs:
         with:
           node-version: 22
           cache: npm
+      - name: Set release version
+        run: |
+          if [[ "${GITHUB_REF}" == refs/tags/v* ]]; then
+            VER="${GITHUB_REF_NAME#v}"
+          else
+            VER="1.0.${GITHUB_RUN_NUMBER}"
+          fi
+          export VER
+          node -e "const fs=require('fs');const p=JSON.parse(fs.readFileSync('package.json','utf8'));p.version=process.env.VER;fs.writeFileSync('package.json',JSON.stringify(p,null,2)+'\n')"
+          echo "Building Quiet Ledger v${VER}"
       - run: npm ci
       - run: npm run typecheck
       - run: npm run build:mac
+      - name: Stable download aliases
+        run: |
+          cd dist
+          dmg=$(ls -1 *.dmg | head -1)
+          zip=$(ls -1 *.zip | head -1)
+          cp "$dmg" quiet-ledger-mac.dmg
+          cp "$zip" quiet-ledger-mac.zip
       - uses: actions/upload-artifact@v4
         with:
           name: quiet-ledger-mac
@@ -41,29 +59,58 @@ jobs:
         with:
           node-version: 22
           cache: npm
+      - name: Set release version
+        shell: bash
+        run: |
+          if [[ "${GITHUB_REF}" == refs/tags/v* ]]; then
+            VER="${GITHUB_REF_NAME#v}"
+          else
+            VER="1.0.${GITHUB_RUN_NUMBER}"
+          fi
+          export VER
+          node -e "const fs=require('fs');const p=JSON.parse(fs.readFileSync('package.json','utf8'));p.version=process.env.VER;fs.writeFileSync('package.json',JSON.stringify(p,null,2)+'\n')"
+          echo "Building Quiet Ledger v${VER}"
       - run: npm ci
       - run: npm run typecheck
       - run: npm run build:win
+      - name: Stable download aliases
+        shell: bash
+        run: |
+          cd dist
+          setup=$(ls -1 *-setup.exe 2>/dev/null | head -1 || ls -1 *.exe | head -1)
+          cp "$setup" quiet-ledger-win-setup.exe
       - uses: actions/upload-artifact@v4
         with:
           name: quiet-ledger-windows
           path: |
             dist/*.exe
-            dist/*-setup.exe
           if-no-files-found: error
 
   publish:
     needs: [mac, windows]
-    if: startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-latest
     steps:
       - uses: actions/download-artifact@v4
         with:
           path: artifacts
+      - name: Resolve tag
+        id: meta
+        run: |
+          if [[ "${GITHUB_REF}" == refs/tags/v* ]]; then
+            TAG="${GITHUB_REF_NAME}"
+          else
+            TAG="v1.0.${GITHUB_RUN_NUMBER}"
+          fi
+          echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
+          echo "Publishing ${TAG}"
+          find artifacts -type f | sort
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
+          tag_name: ${{ steps.meta.outputs.tag }}
+          name: Quiet Ledger ${{ steps.meta.outputs.tag }}
+          generate_release_notes: true
+          make_latest: true
           files: |
             artifacts/quiet-ledger-mac/*
             artifacts/quiet-ledger-windows/*
-          generate_release_notes: true

@@ -17,8 +17,13 @@ export function IncomeSplit({
   monthLabel: string
 }): JSX.Element {
   const { t } = useLocale()
-  const income = data.incomePlnMinor
-  const kept = Math.max(0, data.cashflowPlnMinor)
+  const income = data.income
+    .filter((e) => e.status === 'received')
+    .reduce((sum, e) => sum + e.plnAmountMinor, 0)
+  const kept = Math.max(
+    0,
+    income - data.expensesPlnMinor - data.installmentsPlnMinor
+  )
   const cats = [...data.expensesByCategory].sort((a, b) => b.amountPlnMinor - a.amountPlnMinor)
 
   const slices: { key: string; label: string; amount: number; tone: 'kept' | 'cat' }[] = [

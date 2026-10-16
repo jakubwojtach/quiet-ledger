@@ -336,7 +336,8 @@ export function SavingsDashboard({
         </div>
       </section>
 
-      <div className="grid min-h-0 w-full grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr)_360px] max-[1359px]:lg:grid-cols-[minmax(0,1fr)_320px]">
+      {/* Two columns only when there's real room (rail ~208 + content ≥ ~1140). */}
+      <div className="grid min-h-0 w-full grid-cols-1 gap-4 min-[1360px]:grid-cols-[minmax(0,1fr)_340px]">
         <div className="flex min-w-0 flex-col gap-4">
           <FadeUp delay={0.04}>
             {showChart ? (

@@ -60,8 +60,9 @@ export function listCashflowHistory(limitMonths = 18): CashflowMonthPoint[] {
   const db = getDb()
   const incomeRows = db
     .prepare(
-      `SELECT month, SUM(amount_minor) AS total
+      `SELECT month, SUM(COALESCE(pln_amount_minor, amount_minor)) AS total
        FROM income_entries
+       WHERE COALESCE(status, 'received') = 'received'
        GROUP BY month
        ORDER BY month DESC
        LIMIT ?`

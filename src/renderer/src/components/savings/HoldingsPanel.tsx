@@ -121,19 +121,20 @@ export function HoldingsPanel({
           </Button>
         </div>
       ) : (
-        <table className="w-full border-collapse">
+        <div className="-mx-4 overflow-x-auto px-4">
+        <table className="w-full min-w-[520px] border-collapse">
           <thead>
             <tr>
               <th className="border-b border-[var(--line)] pb-2 text-left text-[11px] font-medium tracking-[0.04em] text-[var(--ink-3)] uppercase">
                 {t('holdings.col.holding')}
               </th>
-              <th className="w-[120px] border-b border-[var(--line)] pb-2 text-right text-[11px] font-medium tracking-[0.04em] text-[var(--ink-3)] uppercase">
+              <th className="w-[96px] border-b border-[var(--line)] pb-2 text-right text-[11px] font-medium tracking-[0.04em] text-[var(--ink-3)] uppercase sm:w-[120px]">
                 {t('holdings.col.value')}
               </th>
-              <th className="w-[136px] border-b border-[var(--line)] pb-2 text-right text-[11px] font-medium tracking-[0.04em] text-[var(--ink-3)] uppercase">
+              <th className="w-[72px] border-b border-[var(--line)] pb-2 text-right text-[11px] font-medium tracking-[0.04em] text-[var(--ink-3)] uppercase min-[1100px]:w-[136px]">
                 {t('holdings.col.share')}
               </th>
-              <th className="w-[112px] border-b border-[var(--line)] pb-2 text-right text-[11px] font-medium tracking-[0.04em] text-[var(--ink-3)] uppercase">
+              <th className="w-[88px] border-b border-[var(--line)] pb-2 text-right text-[11px] font-medium tracking-[0.04em] text-[var(--ink-3)] uppercase max-[899px]:hidden">
                 {t('holdings.col.since')}
               </th>
               <th className="col-valued w-[72px] border-b border-[var(--line)] pb-2 text-right text-[11px] font-medium tracking-[0.04em] text-[var(--ink-3)] uppercase max-[1359px]:hidden">
@@ -193,7 +194,7 @@ export function HoldingsPanel({
                   </td>
                   <td>
                     <div className="flex items-center justify-end gap-2.5">
-                      <div className="h-1 w-12 overflow-hidden rounded-sm bg-[var(--surface-3)] min-[1360px]:w-[72px]">
+                      <div className="hidden h-1 w-12 overflow-hidden rounded-sm bg-[var(--surface-3)] min-[1100px]:block min-[1360px]:w-[72px]">
                         <i
                           className="block h-full bg-[var(--accent)]"
                           style={{ width: `${Math.min(100, share)}%` }}
@@ -201,7 +202,7 @@ export function HoldingsPanel({
                       </div>
                       <Sensitive
                         placeholder={MASK.percent}
-                        className="num w-12 text-right text-[13px]"
+                        className="num w-10 text-right text-[13px] min-[1100px]:w-12"
                       >
                         {share.toLocaleString(localeTag, {
                           minimumFractionDigits: 1,
@@ -211,7 +212,7 @@ export function HoldingsPanel({
                       </Sensitive>
                     </div>
                   </td>
-                  <td className="text-right">
+                  <td className="text-right max-[899px]:hidden">
                     {v.gainPercent != null ? (
                       <Sensitive
                         placeholder={MASK.percent}
@@ -240,6 +241,7 @@ export function HoldingsPanel({
             })}
           </tbody>
         </table>
+        </div>
       )}
     </section>
   )

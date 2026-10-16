@@ -13,10 +13,12 @@ import {
   DEFAULT_PREFERENCES,
   normalizePreferences,
   readPreferences,
+  syncIntegrationsToMain,
   writePreferences,
   type AppPreferences,
   type FontPackId,
-  type InterestId
+  type InterestId,
+  type IntegrationsConfig
 } from './appPreferences'
 import { useTheme, type ThemeMode } from './theme'
 
@@ -28,6 +30,7 @@ type PreferencesContextValue = {
   setFontPack: (id: FontPackId) => void
   setModules: (modules: { showSavings?: boolean; showInstallments?: boolean }) => void
   setInterests: (interests: InterestId[]) => void
+  setIntegrations: (integrations: IntegrationsConfig) => void
   completeOnboarding: (patch?: Partial<AppPreferences>) => void
   reopenOnboarding: () => void
 }
@@ -53,6 +56,13 @@ export function PreferencesProvider({ children }: { children: ReactNode }): JSX.
     const normalized = normalizePreferences(next)
     setPrefsState(normalized)
     writePreferences(normalized)
+    syncIntegrationsToMain(normalized.integrations)
+  }, [])
+
+  // Mirror integrations into main on first mount (and after localStorage hydrate).
+  useEffect(() => {
+    syncIntegrationsToMain(prefs.integrations)
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- boot sync once with initial prefs
   }, [])
 
   const setPrefs = useCallback(
@@ -96,6 +106,11 @@ export function PreferencesProvider({ children }: { children: ReactNode }): JSX.
     [commit, prefs]
   )
 
+  const setIntegrations = useCallback(
+    (integrations: IntegrationsConfig) => commit({ ...prefs, integrations }),
+    [commit, prefs]
+  )
+
   const completeOnboarding = useCallback(
     (patch: Partial<AppPreferences> = {}) => {
       const next = { ...prefs, ...patch, onboardingCompleted: true }
@@ -118,6 +133,7 @@ export function PreferencesProvider({ children }: { children: ReactNode }): JSX.
       setFontPack,
       setModules,
       setInterests,
+      setIntegrations,
       completeOnboarding,
       reopenOnboarding
     }),
@@ -129,6 +145,7 @@ export function PreferencesProvider({ children }: { children: ReactNode }): JSX.
       setFontPack,
       setModules,
       setInterests,
+      setIntegrations,
       completeOnboarding,
       reopenOnboarding
     ]

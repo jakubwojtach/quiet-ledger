@@ -5,9 +5,10 @@ import icon from '../../resources/icon.png?asset'
 import { APP_ID, PRODUCT_NAME } from '@shared/dataDirs'
 import { closeDatabase, initDatabase } from './db'
 import { registerIpcHandlers } from './ipc/handlers'
-import { resolveUserDataDir } from './userDataDir'
+import { migrateLegacyDatabaseIfNeeded, resolveUserDataDir } from './userDataDir'
 
 app.setPath('userData', resolveUserDataDir())
+migrateLegacyDatabaseIfNeeded()
 
 function createWindow(): void {
   const isMac = process.platform === 'darwin'

@@ -1,6 +1,6 @@
-import { existsSync } from 'fs'
+import { copyFileSync, existsSync, mkdirSync } from 'fs'
+import { basename, join } from 'path'
 import { homedir } from 'os'
-import { join } from 'path'
 import {
   APP_ID,
   DATA_DIR_NAME,
@@ -38,6 +38,30 @@ export function listLegacyDatabaseFiles(): string[] {
     if (existsSync(path)) found.push(path)
   }
   return found
+}
+
+/**
+ * One-shot: if quiet-ledger has no DB yet but a legacy folder does, copy the
+ * SQLite file (+ WAL/SHM) so holdings survive the Quiet Ledger rename.
+ */
+export function migrateLegacyDatabaseIfNeeded(): void {
+  const destDir = resolveUserDataDir()
+  const destDb = join(destDir, DB_FILE_NAME)
+  if (existsSync(destDb)) return
+
+  for (const name of LEGACY_DATA_DIR_NAMES) {
+    const srcDb = join(userDataDirFor(name), DB_FILE_NAME)
+    if (!existsSync(srcDb)) continue
+
+    if (!existsSync(destDir)) mkdirSync(destDir, { recursive: true })
+
+    for (const src of [srcDb, `${srcDb}-wal`, `${srcDb}-shm`]) {
+      if (!existsSync(src)) continue
+      copyFileSync(src, join(destDir, basename(src)))
+    }
+    console.log(`[quiet-ledger] Migrated SQLite from ${name} → ${DATA_DIR_NAME}`)
+    return
+  }
 }
 
 export function describeDatabase(dbPath: string): DatabaseInfo {

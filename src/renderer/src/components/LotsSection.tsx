@@ -43,15 +43,17 @@ function gainLabel(gainMinor: number, paidMinor: number): string {
 }
 
 function quantityLabel(asset: Asset, lot: AssetLot): string {
-  const qty = (lot.quantityScaled / QUANTITY_SCALE).toLocaleString('pl-PL', {
+  const sell = lot.quantityScaled < 0
+  const qty = (Math.abs(lot.quantityScaled) / QUANTITY_SCALE).toLocaleString('pl-PL', {
     maximumFractionDigits: 6
   })
-  if (asset.class === 'bond') return `${qty} szt.${lot.series ? ` ${lot.series}` : ''}`
-  if (lot.priceScaled == null || !lot.priceCurrency) return qty
+  const prefix = sell ? '−' : ''
+  if (asset.class === 'bond') return `${prefix}${qty} szt.${lot.series ? ` ${lot.series}` : ''}`
+  if (lot.priceScaled == null || !lot.priceCurrency) return `${prefix}${qty}`
   const price = (lot.priceScaled / LOT_PRICE_SCALE).toLocaleString('pl-PL', {
     maximumFractionDigits: 4
   })
-  return `${qty} @ ${price} ${lot.priceCurrency}`
+  return `${prefix}${qty} @ ${price} ${lot.priceCurrency}${sell ? ' · out' : ''}`
 }
 
 export function LotsSection({ asset, priceCurrency }: LotsSectionProps): JSX.Element {
@@ -61,6 +63,8 @@ export function LotsSection({ asset, priceCurrency }: LotsSectionProps): JSX.Ele
   const groups = groupByMonth(lots)
   const valueIsShare = lots.some((v) => v.valueIsShare)
 
+  const fundStyle = asset.class === 'retirement'
+
   function openNew(): void {
     setEditing(null)
     setDialogOpen(true)
@@ -69,9 +73,11 @@ export function LotsSection({ asset, priceCurrency }: LotsSectionProps): JSX.Ele
   return (
     <section className="space-y-3" data-testid="lots-section">
       <div className="flex items-center justify-between gap-2">
-        <h2 className="text-[13px] leading-5 font-semibold">Purchases</h2>
+        <h2 className="text-[13px] leading-5 font-semibold">
+          {fundStyle ? 'Contributions & withdrawals' : 'Purchases'}
+        </h2>
         <Button size="sm" variant="outline" className="h-7" onClick={openNew} data-testid="add-lot">
-          Add purchase
+          {fundStyle ? 'Add movement' : 'Add purchase'}
         </Button>
       </div>
 

@@ -1,4 +1,4 @@
-import { useLayoutEffect, useRef, type JSX, type ReactNode } from 'react'
+import { useLayoutEffect, useRef, useState, type JSX, type ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 import { formatAmountNumber, formatGainPercent } from '@shared/money'
 import {
@@ -11,6 +11,8 @@ import { FORT_WOLA_CATALOG, FORT_WOLA_UNIT, NEFRYTOWA_PLOT } from '@shared/marke
 import { supportsLots, type Asset, type ValuedAsset } from '@shared/types'
 import { useAsset, useDashboard } from '@renderer/hooks/useNetWorth'
 import { LotsSection } from '@renderer/components/LotsSection'
+import { MovementsSection } from '@renderer/components/MovementsSection'
+import type { MovementKind } from '@shared/types'
 import { MoneyAmount } from '@renderer/components/shell/MoneyAmount'
 import { PrivacyToggle } from '@renderer/components/shell/PrivacyToggle'
 import { useLocale } from '@renderer/lib/i18n/locale'
@@ -39,6 +41,8 @@ export function AssetDetail({
 
   const rootRef = useRef<HTMLDivElement>(null)
   const stickyRef = useRef<HTMLDivElement>(null)
+  const [mvOpen, setMvOpen] = useState(false)
+  const [mvKind, setMvKind] = useState<MovementKind>('deposit')
 
   const stickyKey = data
     ? `${data.asset.id}:${data.plnValueMinor}:${data.lastUpdated ?? ''}:${data.gainPlnMinor ?? ''}:${data.gainPercent ?? ''}`
@@ -80,10 +84,10 @@ export function AssetDetail({
 
   const { asset } = data
   const estimate = catalogEstimateFor(asset.id)
-  const isCatalog =
-    (asset.class === 'apartment' || asset.class === 'land') &&
-    asset.valueSource === 'estimate' &&
-    estimate != null
+  /** Local catalog metadata (Fort Wola / Nefrytowa) — keep UI even when Otodom drives the live worth. */
+  const hasCatalog =
+    (asset.class === 'apartment' || asset.class === 'land') && estimate != null
+  const usesCatalogValuation = hasCatalog && asset.valueSource === 'estimate'
 
   const totalAssets = dashboard?.totalAssetsPlnMinor ?? 0
   const assets = dashboard?.assets ?? []
@@ -99,12 +103,7 @@ export function AssetDetail({
       ? `${data.gainPlnMinor > 0 ? '+' : ''}${formatAmountNumber(data.gainPlnMinor, localeTag)} zł · ${formatGainPercent(data.gainPercent, localeTag)} ${t('detail.vsPaid')}`
       : null
 
-  const askingWarn =
-    isCatalog && asset.class === 'land'
-      ? t('detail.askingPrice')
-      : asset.class === 'land' && asset.valueSource === 'estimate'
-        ? t('detail.askingPrice')
-        : null
+  const askingWarn = hasCatalog && asset.class === 'land' ? t('detail.askingPrice') : null
 
   return (
     <div
@@ -137,6 +136,35 @@ export function AssetDetail({
             </Sensitive>
           </nav>
           <span className="flex-1" />
+          {(asset.class === 'savings_pln' || asset.class === 'savings_usd') && (
+            <>
+              <Button
+                size="sm"
+                className="h-7"
+                data-testid="sticky-add-deposit"
+                onClick={() => {
+                  setMvKind('deposit')
+                  setMvOpen(true)
+                  document.getElementById('movements')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+                }}
+              >
+                {t('movements.addDeposit')}
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                className="h-7"
+                data-testid="sticky-add-withdrawal"
+                onClick={() => {
+                  setMvKind('withdrawal')
+                  setMvOpen(true)
+                  document.getElementById('movements')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+                }}
+              >
+                {t('movements.addWithdrawal')}
+              </Button>
+            </>
+          )}
           <PrivacyToggle />
           {onEdit ? (
             <Button variant="outline" size="sm" className="h-7" onClick={() => onEdit(asset)}>
@@ -201,8 +229,25 @@ export function AssetDetail({
       {/* Body: left scrolls; right rail sticks under the sticky hero */}
       <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-[minmax(0,1fr)_360px] max-[1359px]:lg:grid-cols-[minmax(0,1fr)_320px]">
         <div className="flex min-w-0 flex-col gap-4">
-          {isCatalog && estimate ? (
+          {asset.class === 'savings_pln' || asset.class === 'savings_usd' ? (
+            <section className="surface-card p-3.5 px-4 pb-4">
+              <MovementsSection
+                asset={asset}
+                dialogOpen={mvOpen}
+                onDialogOpenChange={setMvOpen}
+                dialogKind={mvKind}
+                onDialogKindChange={setMvKind}
+              />
+            </section>
+          ) : null}
+
+          {hasCatalog && estimate ? (
             <>
+              {!usesCatalogValuation ? (
+                <p className="text-[12px] leading-4 text-[var(--ink-3)]">
+                  {t('detail.catalogReference')}
+                </p>
+              ) : null}
               <CatalogHowCalculated estimate={estimate} localeTag={localeTag} t={t} />
               <SensitivityCard estimate={estimate} localeTag={localeTag} t={t} />
             </>
@@ -220,13 +265,13 @@ export function AssetDetail({
         <aside className="flex min-w-0 flex-col gap-4 lg:sticky lg:top-[var(--holding-sticky-h,5rem)]">
           <ValuationSideCard
             data={data}
-            estimate={isCatalog ? estimate : null}
+            estimate={hasCatalog ? estimate : null}
             localeTag={localeTag}
             t={t}
           />
           <PurchaseSideCard
             data={data}
-            estimate={isCatalog ? estimate : null}
+            estimate={hasCatalog ? estimate : null}
             localeTag={localeTag}
             t={t}
           />
@@ -511,16 +556,23 @@ function ValuationSideCard({
       ? t('detail.priceStale')
       : t('detail.priceFresh')
   const asset = data.asset
+  const otodom =
+    (asset.class === 'apartment' || asset.class === 'land') && asset.valueSource === 'otodom'
+  const otomoto = asset.class === 'car' && asset.valueSource === 'otomoto'
   const manual =
     asset.class === 'savings_pln' ||
     asset.class === 'savings_usd' ||
     ((asset.class === 'apartment' || asset.class === 'land' || asset.class === 'car') &&
       asset.valueSource === 'manual')
-  const method = estimate
-    ? t('detail.methodCatalog')
-    : manual
-      ? t('detail.methodManual')
-      : t('detail.methodMarket')
+  const method = otodom
+    ? t('detail.methodOtodom')
+    : otomoto
+      ? t('detail.methodOtomoto')
+      : estimate
+        ? t('detail.methodCatalog')
+        : manual
+          ? t('detail.methodManual')
+          : t('detail.methodMarket')
 
   return (
     <section className="surface-card p-3.5 px-4 pb-4">
@@ -543,7 +595,7 @@ function ValuationSideCard({
             </span>
           }
         />
-        {estimate ? (
+        {estimate && !otodom ? (
           <DlRow
             label={t('detail.source')}
             value={
@@ -566,7 +618,7 @@ function ValuationSideCard({
           />
         ) : null}
       </dl>
-      {estimate ? (
+      {estimate && !otodom ? (
         <p className="mt-2.5 text-[12px] leading-[18px] text-[var(--ink-2)]">
           {t('detail.catalogFallback')}
         </p>

@@ -1,4 +1,5 @@
 import { getCache, setCache, PRICE_SCALE } from '../db'
+import { isLive } from './integrations/registry'
 
 const TTL_MS = 15 * 60 * 1000
 
@@ -59,6 +60,17 @@ async function cachedQuote(
  */
 export function getEquityPrice(ticker: string): Promise<EquityQuote> {
   const symbol = ticker.toUpperCase()
+  if (!isLive('yahoo_equity')) {
+    return Promise.resolve(
+      fromCache(`EQ:${symbol}`, true) ?? {
+        price: 0,
+        currency: 'PLN',
+        fetchedAt: new Date(0).toISOString(),
+        stale: true,
+        missing: true
+      }
+    )
+  }
   return cachedQuote(`EQ:${symbol}`, async () => {
     const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?range=1d&interval=1d`
     const res = await fetch(url, {
@@ -82,6 +94,17 @@ export function getEquityPrice(ticker: string): Promise<EquityQuote> {
 /** Polish mutual fund NAV (wartość jednostki) from analizy.pl, by fund code such as ING80K. */
 export function getFundNav(fundCode: string): Promise<EquityQuote> {
   const code = fundCode.toUpperCase()
+  if (!isLive('analizy_funds')) {
+    return Promise.resolve(
+      fromCache(`FUND:${code}`, true) ?? {
+        price: 0,
+        currency: 'PLN',
+        fetchedAt: new Date(0).toISOString(),
+        stale: true,
+        missing: true
+      }
+    )
+  }
   return cachedQuote(`FUND:${code}`, async () => {
     const url = `https://www.analizy.pl/api/quotation/fio/${encodeURIComponent(code)}`
     const res = await fetch(url, {

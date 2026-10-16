@@ -28,6 +28,12 @@ export function upsertAsset(input: UpsertAssetParsed): Asset {
     currency: null as string | null,
     valued_on: null as string | null,
     value_source: null as string | null,
+    address: null as string | null,
+    area_m2: null as number | null,
+    car_make: null as string | null,
+    car_model: null as string | null,
+    car_year: null as number | null,
+    car_trim: null as string | null,
     account: input.account ?? null,
     created_at: createdAt,
     updated_at: now
@@ -70,6 +76,26 @@ export function upsertAsset(input: UpsertAssetParsed): Asset {
       row.cost_basis_minor = input.costBasis
       row.cost_currency = input.costBasis == null ? null : input.currency
       row.value_source = input.valueSource
+      if (input.class === 'apartment' || input.class === 'land') {
+        row.address = input.address ?? null
+        row.area_m2 = input.areaM2 ?? null
+        if (input.valueSource === 'otodom') {
+          if (!row.address || row.area_m2 == null || row.area_m2 <= 0) {
+            throw new Error('Otodom comps need an address and area in m²')
+          }
+        }
+      }
+      if (input.class === 'car') {
+        row.car_make = input.make ?? null
+        row.car_model = input.model ?? null
+        row.car_year = input.year ?? null
+        row.car_trim = input.trim ?? null
+        if (input.valueSource === 'otomoto') {
+          if (!row.car_make || !row.car_model || row.car_year == null) {
+            throw new Error('Otomoto comps need make, model, and year')
+          }
+        }
+      }
       break
     default: {
       const _e: never = input
@@ -84,12 +110,14 @@ export function upsertAsset(input: UpsertAssetParsed): Asset {
         id, class, name, notes,
         ticker, quantity_scaled, cost_basis_minor, cost_currency,
         nominal_minor, unit_value_minor, units_scaled, unit_price_minor,
-        amount_minor, currency, valued_on, value_source, account, created_at, updated_at
+        amount_minor, currency, valued_on, value_source, address, area_m2,
+        car_make, car_model, car_year, car_trim, account, created_at, updated_at
       ) VALUES (
         @id, @class, @name, @notes,
         @ticker, @quantity_scaled, @cost_basis_minor, @cost_currency,
         @nominal_minor, @unit_value_minor, @units_scaled, @unit_price_minor,
-        @amount_minor, @currency, @valued_on, @value_source, @account, @created_at, @updated_at
+        @amount_minor, @currency, @valued_on, @value_source, @address, @area_m2,
+        @car_make, @car_model, @car_year, @car_trim, @account, @created_at, @updated_at
       )
       ON CONFLICT(id) DO UPDATE SET
         class = excluded.class,
@@ -107,6 +135,12 @@ export function upsertAsset(input: UpsertAssetParsed): Asset {
         currency = excluded.currency,
         valued_on = excluded.valued_on,
         value_source = excluded.value_source,
+        address = excluded.address,
+        area_m2 = excluded.area_m2,
+        car_make = excluded.car_make,
+        car_model = excluded.car_model,
+        car_year = excluded.car_year,
+        car_trim = excluded.car_trim,
         account = excluded.account,
         updated_at = excluded.updated_at`
     )

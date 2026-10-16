@@ -1,5 +1,5 @@
 import { useEffect, useState, type FormEvent, type JSX } from 'react'
-import { minorToMajor } from '@shared/money'
+import { minorToMajor, parseMajorInput } from '@shared/money'
 import { LOT_PRICE_SCALE, QUANTITY_SCALE, type Asset, type AssetLot } from '@shared/types'
 import { useDeleteLot, useUpsertLot } from '@renderer/hooks/useNetWorth'
 import { Button } from '@renderer/components/ui/button'
@@ -34,7 +34,7 @@ function paidCurrencyOf(asset: Asset): string {
 }
 
 function num(s: string): number {
-  return Number(s.replace(/\s/g, '').replace(',', '.'))
+  return parseMajorInput(s) ?? Number.NaN
 }
 
 export function LotFormDialog({
@@ -47,8 +47,10 @@ export function LotFormDialog({
   const upsert = useUpsertLot()
   const remove = useDeleteLot()
   const isBond = asset.class === 'bond'
+  const supportsSide = asset.class === 'retirement' || asset.class === 'etf'
 
   const [date, setDate] = useState('')
+  const [side, setSide] = useState<'buy' | 'sell'>('buy')
   const [quantity, setQuantity] = useState('')
   const [price, setPrice] = useState('')
   const [priceCcy, setPriceCcy] = useState('')
@@ -63,17 +65,20 @@ export function LotFormDialog({
     if (!open) return
     setError(null)
     if (lot) {
+      const sell = lot.quantityScaled < 0 || lot.paidMinor < 0
+      setSide(sell ? 'sell' : 'buy')
       setDate(lot.date)
-      setQuantity(String(lot.quantityScaled / QUANTITY_SCALE))
+      setQuantity(String(Math.abs(lot.quantityScaled) / QUANTITY_SCALE))
       setPrice(lot.priceScaled == null ? '' : String(lot.priceScaled / LOT_PRICE_SCALE))
       setPriceCcy(lot.priceCurrency ?? priceCurrency)
-      setPaid(String(minorToMajor(lot.paidMinor)))
+      setPaid(String(Math.abs(minorToMajor(lot.paidMinor))))
       setPaidCcy(lot.paidCurrency)
       setSeries(lot.series ?? '')
       setEstimated(lot.estimated)
       setNote(lot.note ?? '')
       return
     }
+    setSide('buy')
     setDate(new Date().toISOString().slice(0, 10))
     setQuantity('')
     setPrice(isBond ? String(BOND_UNIT_PRICE) : '')
@@ -118,6 +123,7 @@ export function LotFormDialog({
         assetId: asset.id,
         date,
         quantity: qty,
+        side: supportsSide ? side : 'buy',
         price: priceN,
         priceCurrency: priceN == null ? null : priceCcy.toUpperCase(),
         paid: paidN,
@@ -146,17 +152,49 @@ export function LotFormDialog({
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent data-testid="lot-form-dialog">
         <SheetHeader>
-          <SheetTitle>{lot ? 'Edit purchase' : 'Add purchase'}</SheetTitle>
+          <SheetTitle>
+            {lot
+              ? supportsSide
+                ? side === 'sell'
+                  ? 'Edit withdrawal'
+                  : 'Edit contribution'
+                : 'Edit purchase'
+              : supportsSide
+                ? side === 'sell'
+                  ? 'Add withdrawal'
+                  : 'Add contribution'
+                : 'Add purchase'}
+          </SheetTitle>
           <SheetDescription>
             {asset.name}
             {asset.account ? ` · ${asset.account}` : ''}.{' '}
             {isBond
               ? 'Paid fills in from the number of bonds × 100 zł.'
-              : 'Leave quantity or paid blank to work it out from the price, when both are in the same currency.'}
+              : side === 'sell'
+                ? 'Units leave the holding; paid reduces cost basis.'
+                : 'Leave quantity or paid blank to work it out from the price, when both are in the same currency.'}
           </SheetDescription>
         </SheetHeader>
         <form className="flex min-h-0 flex-1 flex-col" onSubmit={(e) => void onSubmit(e)}>
           <SheetBody className="grid content-start gap-3.5">
+            {supportsSide ? (
+              <div className="inline-flex w-fit rounded-[7px] border border-[var(--line)] bg-[var(--surface-2)] p-0.5">
+                {(['buy', 'sell'] as const).map((s) => (
+                  <button
+                    key={s}
+                    type="button"
+                    onClick={() => setSide(s)}
+                    className={
+                      side === s
+                        ? 'flex h-[22px] items-center rounded-[5px] bg-[var(--surface-1)] px-2.5 text-[12px] font-medium shadow-sm'
+                        : 'flex h-[22px] items-center rounded-[5px] px-2.5 text-[12px] font-medium text-[var(--ink-3)]'
+                    }
+                  >
+                    {s === 'buy' ? 'Contribution' : 'Withdrawal'}
+                  </button>
+                ))}
+              </div>
+            ) : null}
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
                 <Label htmlFor="lot-date">Date</Label>

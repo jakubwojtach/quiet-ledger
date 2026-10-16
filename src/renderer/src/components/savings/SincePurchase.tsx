@@ -35,7 +35,7 @@ export function SincePurchase({ assets }: { assets: ValuedAsset[] }): JSX.Elemen
           return (
             <div
               key={a.asset.id}
-              className="mt-1.5 grid grid-cols-[1fr_auto] gap-x-3 gap-y-0.5 border-t border-[var(--line)] py-2.5 first:mt-1.5 first:border-t-0"
+              className="mt-1.5 grid grid-cols-1 gap-y-0.5 border-t border-[var(--line)] py-2.5 first:mt-1.5 first:border-t-0 min-[400px]:grid-cols-[1fr_auto] min-[400px]:gap-x-3"
             >
               <Sensitive
                 placeholder={MASK.nameShort}

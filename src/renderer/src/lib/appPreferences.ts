@@ -1,8 +1,14 @@
+import {
+  defaultIntegrationsConfig,
+  normalizeIntegrationsConfig,
+  type InterestId,
+  type IntegrationsConfig
+} from '@shared/integrations'
 import type { ThemeMode } from './theme'
 
 export type FontPackId = 'quiet' | 'editorial' | 'classic' | 'system'
 export type DensityId = 'comfortable' | 'compact'
-export type InterestId = 'etf' | 'property' | 'cash' | 'loans' | 'retirement'
+export type { InterestId, IntegrationsConfig }
 
 export type AppPreferences = {
   themeMode: ThemeMode
@@ -14,6 +20,7 @@ export type AppPreferences = {
   showSavings: boolean
   showInstallments: boolean
   interests: InterestId[]
+  integrations: IntegrationsConfig
   onboardingCompleted: boolean
 }
 
@@ -101,6 +108,7 @@ export const DEFAULT_PREFERENCES: AppPreferences = {
   showSavings: true,
   showInstallments: true,
   interests: [],
+  integrations: defaultIntegrationsConfig(),
   onboardingCompleted: false
 }
 
@@ -230,7 +238,17 @@ export function normalizePreferences(prefs: AppPreferences): AppPreferences {
     showSavings,
     showInstallments,
     interests: Array.isArray(prefs.interests) ? prefs.interests : [],
+    integrations: normalizeIntegrationsConfig(prefs.integrations),
     onboardingCompleted: Boolean(prefs.onboardingCompleted)
+  }
+}
+
+/** Push renderer prefs integrations into the main-process registry. */
+export function syncIntegrationsToMain(integrations: IntegrationsConfig): void {
+  try {
+    void window.api?.setIntegrations?.({ integrations })
+  } catch {
+    /* ignore — preload may be unavailable in tests */
   }
 }
 
