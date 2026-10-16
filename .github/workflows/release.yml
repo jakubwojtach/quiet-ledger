@@ -15,7 +15,47 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  # Semver — not GitHub Actions run numbers.
+  # - git tag v1.2.3 → build 1.2.3
+  # - push master, no tags yet → 1.0.0
+  # - push master, latest tag v1.0.0 → 1.0.1
+  version:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.meta.outputs.version }}
+      tag: ${{ steps.meta.outputs.tag }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - id: meta
+        run: |
+          set -euo pipefail
+          git fetch --tags --force
+
+          if [[ "${GITHUB_REF}" == refs/tags/v* ]]; then
+            VER="${GITHUB_REF_NAME#v}"
+          else
+            LATEST=$(git tag -l 'v*' | sed 's/^v//' | grep -E '^[0-9]+\.[0-9]+\.[0-9]+$' | sort -V | tail -1 || true)
+            if [[ -z "${LATEST}" ]]; then
+              VER="1.0.0"
+            else
+              IFS=. read -r MA MI PA <<< "${LATEST}"
+              VER="${MA}.${MI}.$((PA + 1))"
+            fi
+          fi
+
+          if [[ ! "${VER}" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::Invalid version: ${VER}"
+            exit 1
+          fi
+
+          echo "version=${VER}" >> "$GITHUB_OUTPUT"
+          echo "tag=v${VER}" >> "$GITHUB_OUTPUT"
+          echo "Release version: v${VER}"
+
   mac:
+    needs: version
     runs-on: macos-14
     timeout-minutes: 60
     steps:
@@ -24,13 +64,9 @@ jobs:
         with:
           node-version: 22
           cache: npm
-      - name: Set release version
+      - name: Set package version
         run: |
-          if [[ "${GITHUB_REF}" == refs/tags/v* ]]; then
-            VER="${GITHUB_REF_NAME#v}"
-          else
-            VER="1.0.${GITHUB_RUN_NUMBER}"
-          fi
+          VER="${{ needs.version.outputs.version }}"
           export VER
           node -e "const fs=require('fs');const p=JSON.parse(fs.readFileSync('package.json','utf8'));p.version=process.env.VER;fs.writeFileSync('package.json',JSON.stringify(p,null,2)+'\n')"
           echo "Building Quiet Ledger v${VER}"
@@ -85,6 +121,7 @@ jobs:
           if-no-files-found: error
 
   windows:
+    needs: version
     runs-on: windows-latest
     timeout-minutes: 45
     steps:
@@ -93,14 +130,10 @@ jobs:
         with:
           node-version: 22
           cache: npm
-      - name: Set release version
+      - name: Set package version
         shell: bash
         run: |
-          if [[ "${GITHUB_REF}" == refs/tags/v* ]]; then
-            VER="${GITHUB_REF_NAME#v}"
-          else
-            VER="1.0.${GITHUB_RUN_NUMBER}"
-          fi
+          VER="${{ needs.version.outputs.version }}"
           export VER
           node -e "const fs=require('fs');const p=JSON.parse(fs.readFileSync('package.json','utf8'));p.version=process.env.VER;fs.writeFileSync('package.json',JSON.stringify(p,null,2)+'\n')"
           echo "Building Quiet Ledger v${VER}"
@@ -138,28 +171,17 @@ jobs:
           if-no-files-found: error
 
   publish:
-    needs: [mac, windows]
+    needs: [version, mac, windows]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/download-artifact@v4
         with:
           path: artifacts
-      - name: Resolve tag
-        id: meta
-        run: |
-          if [[ "${GITHUB_REF}" == refs/tags/v* ]]; then
-            TAG="${GITHUB_REF_NAME}"
-          else
-            TAG="v1.0.${GITHUB_RUN_NUMBER}"
-          fi
-          echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
-          echo "Publishing ${TAG}"
-          find artifacts -type f | sort
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ steps.meta.outputs.tag }}
-          name: Quiet Ledger ${{ steps.meta.outputs.tag }}
+          tag_name: ${{ needs.version.outputs.tag }}
+          name: Quiet Ledger ${{ needs.version.outputs.tag }}
           generate_release_notes: true
           make_latest: true
           files: |
