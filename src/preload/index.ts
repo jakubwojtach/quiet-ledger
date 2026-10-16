@@ -83,6 +83,9 @@ const api = {
 
   refreshPrices: (): Promise<DashboardSnapshot> => invokeValidated(IpcChannels.refreshPrices),
 
+  refreshAssetPrice: (request: IdRequest): Promise<ValuedAsset | null> =>
+    invokeValidated(IpcChannels.refreshAssetPrice, request),
+
   listLiabilities: (): Promise<Liability[]> => invokeValidated(IpcChannels.listLiabilities),
 
   upsertLiability: (request: UpsertLiabilityRequest): Promise<Liability> =>

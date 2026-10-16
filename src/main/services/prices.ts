@@ -27,10 +27,11 @@ function fromCache(key: string, stale: boolean): EquityQuote | null {
 
 async function cachedQuote(
   key: string,
-  fetchLive: () => Promise<{ price: number; currency: string }>
+  fetchLive: () => Promise<{ price: number; currency: string }>,
+  force = false
 ): Promise<EquityQuote> {
   const cached = getCache(key)
-  if (cached && Date.now() - new Date(cached.fetchedAt).getTime() < TTL_MS) {
+  if (!force && cached && Date.now() - new Date(cached.fetchedAt).getTime() < TTL_MS) {
     return fromCache(key, false)!
   }
 
@@ -58,7 +59,7 @@ async function cachedQuote(
  * ETF / equity last price from the Yahoo Finance chart endpoint (no key; unofficial).
  * Tickers are Yahoo symbols: VWCE.DE, ISAC.L, ETFBM40TR.WA …
  */
-export function getEquityPrice(ticker: string): Promise<EquityQuote> {
+export function getEquityPrice(ticker: string, opts?: { force?: boolean }): Promise<EquityQuote> {
   const symbol = ticker.toUpperCase()
   if (!isLive('yahoo_equity')) {
     return Promise.resolve(
@@ -88,11 +89,11 @@ export function getEquityPrice(ticker: string): Promise<EquityQuote> {
     // London lines quoted in pence
     if (currency === 'GBp' || currency === 'GBX') return { price: raw / 100, currency: 'GBP' }
     return { price: raw, currency: currency.toUpperCase() }
-  })
+  }, Boolean(opts?.force))
 }
 
 /** Polish mutual fund NAV (wartość jednostki) from analizy.pl, by fund code such as ING80K. */
-export function getFundNav(fundCode: string): Promise<EquityQuote> {
+export function getFundNav(fundCode: string, opts?: { force?: boolean }): Promise<EquityQuote> {
   const code = fundCode.toUpperCase()
   if (!isLive('analizy_funds')) {
     return Promise.resolve(
@@ -105,20 +106,24 @@ export function getFundNav(fundCode: string): Promise<EquityQuote> {
       }
     )
   }
-  return cachedQuote(`FUND:${code}`, async () => {
-    const url = `https://www.analizy.pl/api/quotation/fio/${encodeURIComponent(code)}`
-    const res = await fetch(url, {
-      signal: AbortSignal.timeout(8000),
-      headers: { 'User-Agent': 'Mozilla/5.0' }
-    })
-    if (!res.ok) throw new Error(`analizy.pl HTTP ${res.status}`)
-    const data = (await res.json()) as {
-      currency?: string
-      series?: Array<{ price?: Array<{ date: string; value: number }> }>
-    }
-    const points = data.series?.[0]?.price
-    const last = points?.[points.length - 1]
-    if (!last) throw new Error('analizy.pl response missing NAV')
-    return { price: last.value, currency: (data.currency ?? 'PLN').toUpperCase() }
-  })
+  return cachedQuote(
+    `FUND:${code}`,
+    async () => {
+      const url = `https://www.analizy.pl/api/quotation/fio/${encodeURIComponent(code)}`
+      const res = await fetch(url, {
+        signal: AbortSignal.timeout(8000),
+        headers: { 'User-Agent': 'Mozilla/5.0' }
+      })
+      if (!res.ok) throw new Error(`analizy.pl HTTP ${res.status}`)
+      const data = (await res.json()) as {
+        currency?: string
+        series?: Array<{ price?: Array<{ date: string; value: number }> }>
+      }
+      const points = data.series?.[0]?.price
+      const last = points?.[points.length - 1]
+      if (!last) throw new Error('analizy.pl response missing NAV')
+      return { price: last.value, currency: (data.currency ?? 'PLN').toUpperCase() }
+    },
+    Boolean(opts?.force)
+  )
 }

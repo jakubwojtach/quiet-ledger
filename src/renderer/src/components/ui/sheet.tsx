@@ -94,7 +94,7 @@ export function SheetHeader({
   return (
     <div
       className={cn(
-        'shrink-0 space-y-1 border-b border-[var(--line)] bg-[color-mix(in_oklch,var(--surface-1)_70%,transparent)] px-5 pt-5 pr-12 pb-4',
+        'shrink-0 space-y-1 border-b border-[var(--line)] bg-[var(--surface-1)] px-5 pt-5 pr-12 pb-4',
         className
       )}
       {...props}
@@ -116,7 +116,7 @@ export function SheetFooter({
   return (
     <div
       className={cn(
-        'flex shrink-0 flex-wrap items-center justify-end gap-2 border-t border-[var(--line)] bg-[color-mix(in_oklch,var(--surface-1)_70%,transparent)] px-5 py-3',
+        'flex shrink-0 flex-wrap items-center justify-end gap-2 border-t border-[var(--line)] bg-[var(--surface-1)] px-5 py-3',
         className
       )}
       {...props}

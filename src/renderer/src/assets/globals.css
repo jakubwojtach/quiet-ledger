@@ -306,11 +306,16 @@ html[data-theme='light'] {
 }
 
 .sheet-glass-overlay {
-  background: color-mix(in oklch, var(--bg) 18%, transparent);
-  backdrop-filter: blur(6px) saturate(1.15);
-  -webkit-backdrop-filter: blur(6px) saturate(1.15);
+  /* Scrim must actually cover the page — 18% was effectively invisible. */
+  background: color-mix(in oklch, var(--bg) 72%, transparent);
+  backdrop-filter: blur(16px) saturate(1.15);
+  -webkit-backdrop-filter: blur(16px) saturate(1.15);
   -webkit-app-region: no-drag;
   app-region: no-drag;
+}
+
+.sheet-glass-panel {
+  background: var(--surface-1);
 }
 
 .sheet-glass-panel,

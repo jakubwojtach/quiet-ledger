@@ -540,4 +540,12 @@ export function setCache(
     .run({ key, kind, valueScaled, quoteCurrency, fetchedAt })
 }
 
+export function deleteCache(key: string): void {
+  getDb().prepare('DELETE FROM price_cache WHERE key = ?').run(key)
+}
+
+export function deleteAppMeta(key: string): void {
+  getDb().prepare('DELETE FROM app_meta WHERE key = ?').run(key)
+}
+
 export { QUANTITY_SCALE }

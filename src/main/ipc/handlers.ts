@@ -38,7 +38,8 @@ import {
   buildDashboard,
   getValuedAsset,
   getValuedLots,
-  refreshAllPrices
+  refreshAllPrices,
+  refreshAssetPrice
 } from '../services/valuation'
 import { deleteLot, upsertLot } from '../db/lots'
 import { deleteMovement, listMovements, upsertMovement } from '../db/movements'
@@ -155,6 +156,11 @@ export function registerIpcHandlers(): void {
   })
 
   ipcMain.handle(IpcChannels.refreshPrices, async () => refreshAllPrices())
+
+  ipcMain.handle(IpcChannels.refreshAssetPrice, async (_event, raw: unknown) => {
+    const { id } = idRequestSchema.parse(raw)
+    return refreshAssetPrice(id)
+  })
 
   ipcMain.handle(IpcChannels.listLiabilities, async () => listLiabilities())
 

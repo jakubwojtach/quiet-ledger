@@ -330,23 +330,42 @@ async function fetchCompsQuote(input: {
   }
 }
 
+/** Price-cache + app_meta keys for an Otodom comps quote (for manual refetch). */
+export function otodomCompsCacheKeys(input: {
+  class: 'apartment' | 'land'
+  address: string
+  areaM2: number
+}): { priceKey: string; metaKey: string } | null {
+  const address = input.address.trim()
+  const areaM2 = input.areaM2
+  if (!address || !(areaM2 > 0)) return null
+  const kind: EstateKind = input.class === 'land' ? 'dzialka' : 'mieszkanie'
+  const areaKey = Math.round(areaM2)
+  const addrHash = createHash('sha1').update(address.toLowerCase()).digest('hex').slice(0, 12)
+  const priceKey = `OTODOM_COMPS:${kind}:${addrHash}:${areaKey}`
+  return { priceKey, metaKey: compsMetaKey(priceKey) }
+}
+
 /**
  * Comparable listings near `address`, similar `areaM2`, median zł/m² × area.
  * Public Otodom search — no portal login required.
  */
-export async function getOtodomCompsValue(input: {
-  class: 'apartment' | 'land'
-  address: string
-  areaM2: number
-}): Promise<OtodomCompsQuote> {
+export async function getOtodomCompsValue(
+  input: {
+    class: 'apartment' | 'land'
+    address: string
+    areaM2: number
+  },
+  opts?: { force?: boolean }
+): Promise<OtodomCompsQuote> {
   const address = input.address.trim()
   const areaM2 = input.areaM2
   if (!address || !(areaM2 > 0)) return missingQuote()
 
+  const keys = otodomCompsCacheKeys({ class: input.class, address, areaM2 })
+  if (!keys) return missingQuote()
   const kind: EstateKind = input.class === 'land' ? 'dzialka' : 'mieszkanie'
-  const areaKey = Math.round(areaM2)
-  const addrHash = createHash('sha1').update(address.toLowerCase()).digest('hex').slice(0, 12)
-  const cacheKey = `OTODOM_COMPS:${kind}:${addrHash}:${areaKey}`
+  const cacheKey = keys.priceKey
 
   if (!isLive('property_otodom')) {
     const cached = fromPriceCache(cacheKey, true, readCompsMeta(cacheKey))
@@ -354,10 +373,12 @@ export async function getOtodomCompsValue(input: {
     return { ...cached, price: Math.round(cached.plnPerM2 * areaM2), missing: false }
   }
 
-  const cachedRow = getCache(cacheKey)
-  if (cachedRow && Date.now() - new Date(cachedRow.fetchedAt).getTime() < COMPS_TTL_MS) {
-    const cached = fromPriceCache(cacheKey, false, readCompsMeta(cacheKey))!
-    return { ...cached, price: Math.round(cached.plnPerM2 * areaM2) }
+  if (!opts?.force) {
+    const cachedRow = getCache(cacheKey)
+    if (cachedRow && Date.now() - new Date(cachedRow.fetchedAt).getTime() < COMPS_TTL_MS) {
+      const cached = fromPriceCache(cacheKey, false, readCompsMeta(cacheKey))!
+      return { ...cached, price: Math.round(cached.plnPerM2 * areaM2) }
+    }
   }
 
   try {

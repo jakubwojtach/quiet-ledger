@@ -23,6 +23,7 @@ import { getOtodomCompsValue } from './otodom'
 import { getOtomotoCompsValue } from './otomoto'
 
 type MarketValue = Omit<ValuedAsset, 'costBasisPlnMinor' | 'gainPlnMinor' | 'gainPercent'>
+type ValueOpts = { force?: boolean }
 
 function activeEstimate(
   asset: Extract<Asset, { class: 'apartment' | 'land' | 'car' }>
@@ -32,9 +33,9 @@ function activeEstimate(
   return catalogEstimateFor(asset.id)
 }
 
-async function valueAsset(asset: Asset): Promise<ValuedAsset> {
-  const market = await valueAssetMarket(asset)
-  return attachGain(asset, market)
+async function valueAsset(asset: Asset, opts?: ValueOpts): Promise<ValuedAsset> {
+  const market = await valueAssetMarket(asset, opts)
+  return attachGain(asset, market, opts)
 }
 
 /** What was paid, in its own currency. Cash has no cost basis. */
@@ -56,12 +57,16 @@ function costBasisOf(asset: Asset): { minor: number; currency: string } | null {
   }
 }
 
-async function attachGain(asset: Asset, market: MarketValue): Promise<ValuedAsset> {
+async function attachGain(
+  asset: Asset,
+  market: MarketValue,
+  opts?: ValueOpts
+): Promise<ValuedAsset> {
   const empty = { ...market, costBasisPlnMinor: null, gainPlnMinor: null, gainPercent: null }
   const basis = costBasisOf(asset)
   if (!basis || market.priceMissing) return empty
 
-  const cost = await convertToPlnMinor(basis.minor, basis.currency)
+  const cost = await convertToPlnMinor(basis.minor, basis.currency, opts)
   const gainPlnMinor = market.plnValueMinor - cost.plnMinor
   return {
     ...market,
@@ -72,13 +77,16 @@ async function attachGain(asset: Asset, market: MarketValue): Promise<ValuedAsse
   }
 }
 
-async function valueAssetMarket(asset: Asset): Promise<MarketValue> {
+async function valueAssetMarket(asset: Asset, opts?: ValueOpts): Promise<MarketValue> {
+  const force = opts?.force
   switch (asset.class) {
     case 'etf': {
-      const quote = await getEquityPrice(asset.ticker)
+      const quote = await getEquityPrice(asset.ticker, { force })
       const qty = asset.quantityScaled / QUANTITY_SCALE
       const nativeValueMinor = Math.round(qty * quote.price * 100)
-      const { plnMinor, stale } = await convertToPlnMinor(nativeValueMinor, quote.currency)
+      const { plnMinor, stale } = await convertToPlnMinor(nativeValueMinor, quote.currency, {
+        force
+      })
       return {
         asset,
         nativeValueMinor,
@@ -96,7 +104,8 @@ async function valueAssetMarket(asset: Asset): Promise<MarketValue> {
         Math.round((asset.nominalMinor * asset.unitValueMinor) / 10_000)
       const { plnMinor, stale, fetchedAt } = await convertToPlnMinor(
         nativeValueMinor,
-        asset.currency
+        asset.currency,
+        { force }
       )
       return {
         asset,
@@ -111,11 +120,13 @@ async function valueAssetMarket(asset: Asset): Promise<MarketValue> {
     }
     case 'retirement': {
       const units = asset.unitsScaled / QUANTITY_SCALE
-      const nav = asset.fundCode ? await getFundNav(asset.fundCode) : null
+      const nav = asset.fundCode ? await getFundNav(asset.fundCode, { force }) : null
       const live = nav && !nav.missing ? nav : null
       const price = live ? live.price : asset.unitPriceMinor / 100
       const nativeValueMinor = Math.round(units * price * 100)
-      const { plnMinor, stale } = await convertToPlnMinor(nativeValueMinor, asset.currency)
+      const { plnMinor, stale } = await convertToPlnMinor(nativeValueMinor, asset.currency, {
+        force
+      })
       return {
         asset,
         nativeValueMinor,
@@ -131,7 +142,8 @@ async function valueAssetMarket(asset: Asset): Promise<MarketValue> {
     case 'savings_pln': {
       const { plnMinor, stale, fetchedAt } = await convertToPlnMinor(
         asset.amountMinor,
-        asset.currency
+        asset.currency,
+        { force }
       )
       return {
         asset,
@@ -154,14 +166,19 @@ async function valueAssetMarket(asset: Asset): Promise<MarketValue> {
         asset.areaM2 != null &&
         asset.areaM2 > 0
       ) {
-        const quote = await getOtodomCompsValue({
-          class: asset.class,
-          address: asset.address,
-          areaM2: asset.areaM2
-        })
+        const quote = await getOtodomCompsValue(
+          {
+            class: asset.class,
+            address: asset.address,
+            areaM2: asset.areaM2
+          },
+          { force }
+        )
         if (!quote.missing) {
           const nativeValueMinor = Math.round(quote.price * 100)
-          const { plnMinor, stale } = await convertToPlnMinor(nativeValueMinor, quote.currency)
+          const { plnMinor, stale } = await convertToPlnMinor(nativeValueMinor, quote.currency, {
+            force
+          })
           return {
             asset,
             nativeValueMinor,
@@ -174,7 +191,7 @@ async function valueAssetMarket(asset: Asset): Promise<MarketValue> {
           }
         }
         // Fall back to saved manual worth when comps fail.
-        const { plnMinor } = await convertToPlnMinor(asset.valueMinor, asset.currency)
+        const { plnMinor } = await convertToPlnMinor(asset.valueMinor, asset.currency, { force })
         return {
           asset,
           nativeValueMinor: asset.valueMinor,
@@ -193,15 +210,20 @@ async function valueAssetMarket(asset: Asset): Promise<MarketValue> {
         asset.model &&
         asset.year != null
       ) {
-        const quote = await getOtomotoCompsValue({
-          make: asset.make,
-          model: asset.model,
-          year: asset.year,
-          trim: asset.trim
-        })
+        const quote = await getOtomotoCompsValue(
+          {
+            make: asset.make,
+            model: asset.model,
+            year: asset.year,
+            trim: asset.trim
+          },
+          { force }
+        )
         if (!quote.missing) {
           const nativeValueMinor = Math.round(quote.price * 100)
-          const { plnMinor, stale } = await convertToPlnMinor(nativeValueMinor, quote.currency)
+          const { plnMinor, stale } = await convertToPlnMinor(nativeValueMinor, quote.currency, {
+            force
+          })
           return {
             asset,
             nativeValueMinor,
@@ -213,7 +235,7 @@ async function valueAssetMarket(asset: Asset): Promise<MarketValue> {
             priceMissing: false
           }
         }
-        const { plnMinor } = await convertToPlnMinor(asset.valueMinor, asset.currency)
+        const { plnMinor } = await convertToPlnMinor(asset.valueMinor, asset.currency, { force })
         return {
           asset,
           nativeValueMinor: asset.valueMinor,
@@ -227,7 +249,9 @@ async function valueAssetMarket(asset: Asset): Promise<MarketValue> {
       }
       const estimate = activeEstimate(asset)
       const nativeValueMinor = estimate ? estimate.worthMinor : asset.valueMinor
-      const { plnMinor, stale } = await convertToPlnMinor(nativeValueMinor, asset.currency)
+      const { plnMinor, stale } = await convertToPlnMinor(nativeValueMinor, asset.currency, {
+        force
+      })
       return {
         asset,
         nativeValueMinor,
@@ -261,6 +285,16 @@ export async function getValuedAsset(id: string): Promise<ValuedAsset | null> {
   const asset = getAssetById(id)
   if (!asset) return null
   return valueAsset(asset)
+}
+
+/**
+ * Force a live refetch for one holding (bypass TTL), then revalue it.
+ * Keeps the last cached quote if the live pull fails — never wipes first.
+ */
+export async function refreshAssetPrice(id: string): Promise<ValuedAsset | null> {
+  const asset = getAssetById(id)
+  if (!asset) return null
+  return valueAsset(asset, { force: true })
 }
 
 /**
@@ -304,7 +338,7 @@ export async function getValuedLots(assetId: string): Promise<ValuedLot[]> {
 export async function buildDashboard(): Promise<DashboardSnapshot> {
   const assets = listAssets()
   const liabilities = listLiabilities()
-  const valued = await Promise.all(assets.map(valueAsset))
+  const valued = await Promise.all(assets.map((a) => valueAsset(a)))
   const valuedLiabilities = await Promise.all(liabilities.map(valueLiability))
 
   const byClass = new Map<AssetClass, number>()

@@ -1,5 +1,6 @@
-import { useLayoutEffect, useRef, useState, type JSX, type ReactNode } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState, type JSX, type ReactNode } from 'react'
 import { Link } from 'react-router-dom'
+import { RefreshCw } from 'lucide-react'
 import { formatAmountNumber, formatGainPercent } from '@shared/money'
 import {
   catalogEstimateFor,
@@ -9,7 +10,7 @@ import {
 } from '@shared/valuationFormulas'
 import { FORT_WOLA_CATALOG, FORT_WOLA_UNIT, NEFRYTOWA_PLOT } from '@shared/marketCatalog'
 import { supportsLots, type Asset, type ValuedAsset } from '@shared/types'
-import { useAsset, useDashboard } from '@renderer/hooks/useNetWorth'
+import { useAsset, useDashboard, useRefreshAssetPrice } from '@renderer/hooks/useNetWorth'
 import { LotsSection } from '@renderer/components/LotsSection'
 import { MovementsSection } from '@renderer/components/MovementsSection'
 import type { MovementKind } from '@shared/types'
@@ -19,6 +20,32 @@ import { useLocale } from '@renderer/lib/i18n/locale'
 import { MASK, Sensitive } from '@renderer/lib/privacy'
 import { Button } from '@renderer/components/ui/button'
 import { cn } from '@renderer/lib/utils'
+
+function canRefetchFromSource(asset: Asset): boolean {
+  switch (asset.class) {
+    case 'etf':
+      return true
+    case 'retirement':
+      return Boolean(asset.fundCode)
+    case 'apartment':
+    case 'land':
+      return (
+        asset.valueSource === 'otodom' && Boolean(asset.address) && (asset.areaM2 ?? 0) > 0
+      )
+    case 'car':
+      return (
+        asset.valueSource === 'otomoto' &&
+        Boolean(asset.make && asset.model && asset.year != null)
+      )
+    case 'savings_usd':
+      return true
+    case 'savings_pln':
+    case 'bond':
+      return asset.currency.toUpperCase() !== 'PLN'
+    default:
+      return false
+  }
+}
 
 interface AssetDetailProps {
   assetId: string | null
@@ -35,7 +62,12 @@ export function AssetDetail({
 }: AssetDetailProps): JSX.Element {
   const needsFetch = Boolean(assetId) && !valued
   const { data: fetched, isLoading, isError, error } = useAsset(needsFetch ? assetId : null)
-  const data = valued ?? fetched ?? null
+  const [refetched, setRefetched] = useState<ValuedAsset | null>(null)
+  const refreshPrice = useRefreshAssetPrice()
+  const data =
+    refetched && assetId && refetched.asset.id === assetId
+      ? refetched
+      : (valued ?? fetched ?? null)
   const { data: dashboard } = useDashboard()
   const { t, localeTag } = useLocale()
 
@@ -43,6 +75,10 @@ export function AssetDetail({
   const stickyRef = useRef<HTMLDivElement>(null)
   const [mvOpen, setMvOpen] = useState(false)
   const [mvKind, setMvKind] = useState<MovementKind>('deposit')
+
+  useEffect(() => {
+    setRefetched(null)
+  }, [assetId])
 
   const stickyKey = data
     ? `${data.asset.id}:${data.plnValueMinor}:${data.lastUpdated ?? ''}:${data.gainPlnMinor ?? ''}:${data.gainPercent ?? ''}`
@@ -268,6 +304,16 @@ export function AssetDetail({
             estimate={hasCatalog ? estimate : null}
             localeTag={localeTag}
             t={t}
+            canRefetch={canRefetchFromSource(asset)}
+            refetching={refreshPrice.isPending}
+            onRefetch={() => {
+              if (!assetId) return
+              refreshPrice.mutate(assetId, {
+                onSuccess: (next) => {
+                  if (next) setRefetched(next)
+                }
+              })
+            }}
           />
           <PurchaseSideCard
             data={data}
@@ -543,12 +589,18 @@ function ValuationSideCard({
   data,
   estimate,
   localeTag,
-  t
+  t,
+  canRefetch,
+  refetching,
+  onRefetch
 }: {
   data: ValuedAsset
   estimate: CatalogEstimate | null
   localeTag: string
   t: TFn
+  canRefetch: boolean
+  refetching: boolean
+  onRefetch: () => void
 }): JSX.Element {
   const status = data.priceMissing
     ? t('detail.priceMissing')
@@ -576,7 +628,24 @@ function ValuationSideCard({
 
   return (
     <section className="surface-card p-3.5 px-4 pb-4">
-      <h2 className="text-[13px] leading-5 font-semibold">{t('detail.valuation')}</h2>
+      <div className="flex items-start justify-between gap-2">
+        <h2 className="text-[13px] leading-5 font-semibold">{t('detail.valuation')}</h2>
+        {canRefetch ? (
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="h-7 shrink-0 gap-1.5"
+            disabled={refetching}
+            title={t('detail.refetchPriceHint')}
+            data-testid="refetch-asset-price"
+            onClick={onRefetch}
+          >
+            <RefreshCw className={cn('size-3.5', refetching && 'animate-spin')} />
+            {t('detail.refetchPrice')}
+          </Button>
+        ) : null}
+      </div>
       <dl className="mt-2">
         <DlRow label={t('detail.method')} value={method} />
         <DlRow

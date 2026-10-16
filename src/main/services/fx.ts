@@ -58,7 +58,7 @@ async function fetchFrankfurter(from: string, dateOrLatest: string): Promise<FxQ
  * Returns units of PLN per 1 unit of `from` currency.
  * Uses SQLite cache with 15-minute TTL; falls back to last known if offline.
  */
-export async function getFxRateToPln(from: string): Promise<FxQuote> {
+export async function getFxRateToPln(from: string, opts?: { force?: boolean }): Promise<FxQuote> {
   const currency = from.toUpperCase()
   if (currency === 'PLN') return plnIdentity()
 
@@ -66,7 +66,7 @@ export async function getFxRateToPln(from: string): Promise<FxQuote> {
   const cached = getCache(key)
   const now = Date.now()
 
-  if (cached) {
+  if (cached && !opts?.force) {
     const age = now - new Date(cached.fetchedAt).getTime()
     if (age < TTL_MS) {
       return {
@@ -177,10 +177,11 @@ export async function getFxRateToPlnOnDate(from: string, date: string): Promise<
 
 export async function convertToPlnMinor(
   amountMinor: number,
-  currency: string
+  currency: string,
+  opts?: { force?: boolean }
 ): Promise<{ plnMinor: number; stale: boolean; fetchedAt: string }> {
   try {
-    const fx = await getFxRateToPln(currency)
+    const fx = await getFxRateToPln(currency, opts)
     return {
       plnMinor: Math.round(amountMinor * fx.rate),
       stale: fx.stale,

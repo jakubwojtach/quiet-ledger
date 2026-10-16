@@ -1,9 +1,12 @@
 import { createHash } from 'node:crypto'
 import { getCache, getDb, setCache, PRICE_SCALE } from '../db'
-import { isLive } from './integrations/registry'
+import { getIntegrationsConfig, isLive } from './integrations/registry'
 
 const COMPS_TTL_MS = 6 * 60 * 60 * 1000
+/** Unfiltered make/model search — need a real sample. */
 const MIN_COMPS = 3
+/** After trim title-filter, 2 comps is enough; 1 is better than polluting with base trims. */
+const MIN_COMPS_TRIMMED = 2
 
 export type OtomotoCompsQuote = {
   /** Median asking price in major PLN. */
@@ -79,12 +82,30 @@ function missingQuote(): OtomotoCompsQuote {
   }
 }
 
-export function buildOtomotoSearchUrl(input: {
-  make: string
-  model: string
-  year: number
-  trim?: string | null
-}): string | null {
+/**
+ * Otomoto titles BMW performance trims as "xM50", not "M50".
+ * Prefer the x-prefixed keyword so real M-cars actually appear on page 1.
+ */
+function keywordVariantsForTrim(trim: string): string[] {
+  const t = trim.trim()
+  if (!t) return []
+  const out: string[] = [t]
+  if (/^m\d/i.test(t)) {
+    out.unshift(`x${t}`) // xM50 before M50
+    out.push(`X${t}`)
+  }
+  return [...new Set(out)]
+}
+
+export function buildOtomotoSearchUrl(
+  input: {
+    make: string
+    model: string
+    year: number
+    trim?: string | null
+  },
+  keyword?: string | null
+): string | null {
   const make = slugify(input.make)
   const model = slugify(input.model)
   if (!make || !model) return null
@@ -94,15 +115,45 @@ export function buildOtomotoSearchUrl(input: {
     'search[filter_float_year:from]': String(yearFrom),
     'search[filter_float_year:to]': String(yearTo)
   })
-  const trim = input.trim?.trim()
-  if (trim) params.set('search[filter_keyword]', trim)
+  const kw = (keyword ?? input.trim)?.trim()
+  if (kw) params.set('search[filter_keyword]', kw)
   return `https://www.otomoto.pl/osobowe/${make}/${model}?${params.toString()}`
 }
 
-function parsePricesFromUrql(urqlState: unknown): number[] {
+/** Normalize "M 50" / "xM50" / "m50" → comparable token string. */
+function normalizeTrimToken(raw: string): string {
+  return raw
+    .normalize('NFD')
+    .replace(/\p{M}/gu, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '')
+}
+
+/**
+ * Listing matches trim when every alphanumeric token of the trim appears in the
+ * title/description. "M50" matches "BMW X3 xM50 mHEV"; also accepts xM50 ↔ M50.
+ */
+function listingMatchesTrim(haystack: string, trim: string): boolean {
+  const hay = normalizeTrimToken(haystack)
+  if (!hay) return false
+  const variants = keywordVariantsForTrim(trim).map(normalizeTrimToken)
+  // Any full variant in the title is enough (xM50 or M50).
+  if (variants.some((v) => v && hay.includes(v))) return true
+  const tokens = trim
+    .trim()
+    .split(/[\s/_+-]+/)
+    .map(normalizeTrimToken)
+    .filter(Boolean)
+  if (tokens.length === 0) return true
+  return tokens.every((tok) => hay.includes(tok))
+}
+
+type ListingPrice = { price: number; title: string }
+
+function parseListingPrices(urqlState: unknown): ListingPrice[] {
   const state = asRecord(urqlState)
   if (!state) return []
-  const prices: number[] = []
+  const out: ListingPrice[] = []
   for (const entry of Object.values(state)) {
     const row = asRecord(entry)
     if (!row?.data) continue
@@ -127,10 +178,14 @@ function parsePricesFromUrql(urqlState: unknown): number[] {
           : typeof amount?.value === 'string'
             ? Number(amount.value)
             : null
-      if (units != null && Number.isFinite(units) && units >= 5_000) prices.push(units)
+      if (units == null || !Number.isFinite(units) || units < 5_000) continue
+      const title = typeof node.title === 'string' ? node.title : ''
+      const short =
+        typeof node.shortDescription === 'string' ? node.shortDescription : ''
+      out.push({ price: units, title: `${title} ${short}` })
     }
   }
-  return prices
+  return out
 }
 
 function cacheKeyFor(input: {
@@ -148,15 +203,60 @@ function compsMetaKey(cacheKey: string): string {
   return `otomoto-comps-meta:${cacheKey}`
 }
 
-async function fetchCompsQuote(input: {
+/** Price-cache + app_meta keys for an Otomoto comps quote (for manual refetch). */
+export function otomotoCompsCacheKeys(input: {
   make: string
   model: string
   year: number
   trim?: string | null
-  cacheKey: string
-}): Promise<OtomotoCompsQuote> {
-  const { cacheKey } = input
-  const searchUrl = buildOtomotoSearchUrl(input)
+}): { priceKey: string; metaKey: string } | null {
+  const make = input.make.trim()
+  const model = input.model.trim()
+  const year = input.year
+  if (!make || !model || !Number.isFinite(year) || year < 1980 || year > 2100) return null
+  const priceKey = cacheKeyFor({ make, model, year, trim: input.trim })
+  return { priceKey, metaKey: compsMetaKey(priceKey) }
+}
+
+function quoteFromCache(
+  cacheKey: string,
+  stale: boolean
+): OtomotoCompsQuote | null {
+  const cached = getCache(cacheKey)
+  if (!cached) return null
+  const metaRaw = metaGet(compsMetaKey(cacheKey))
+  let compsCount = 0
+  let searchUrl = ''
+  if (metaRaw) {
+    try {
+      const meta = JSON.parse(metaRaw) as { compsCount?: number; searchUrl?: string }
+      compsCount = meta.compsCount ?? 0
+      searchUrl = meta.searchUrl ?? ''
+    } catch {
+      /* ignore */
+    }
+  }
+  return {
+    price: cached.valueScaled / PRICE_SCALE,
+    currency: cached.quoteCurrency,
+    compsCount,
+    searchUrl,
+    fetchedAt: cached.fetchedAt,
+    stale,
+    missing: false
+  }
+}
+
+async function fetchSearchListings(
+  input: {
+    make: string
+    model: string
+    year: number
+    trim?: string | null
+  },
+  keyword?: string | null
+): Promise<{ searchUrl: string; listings: ListingPrice[] }> {
+  const searchUrl = buildOtomotoSearchUrl(input, keyword)
   if (!searchUrl) throw new Error('Make and model are required')
 
   const res = await fetch(searchUrl, {
@@ -172,16 +272,68 @@ async function fetchCompsQuote(input: {
   const html = await res.text()
   const next = extractNextData(html)
   const pageProps = asRecord(asRecord(asRecord(next)?.props)?.pageProps)
-  const prices = parsePricesFromUrql(pageProps?.urqlState)
-  if (prices.length < MIN_COMPS) {
-    throw new Error(`Only ${prices.length} similar listings (need ${MIN_COMPS}+)`)
+  return { searchUrl, listings: parseListingPrices(pageProps?.urqlState) }
+}
+
+async function fetchCompsQuote(input: {
+  make: string
+  model: string
+  year: number
+  trim?: string | null
+  cacheKey: string
+}): Promise<OtomotoCompsQuote> {
+  const { cacheKey } = input
+  const trim = input.trim?.trim() ?? ''
+  const keywords = trim ? keywordVariantsForTrim(trim) : [null]
+
+  // Try xM50 before M50 — plain "M50" keyword mostly returns base X3 + M Sport.
+  let searchUrl = ''
+  const seen = new Map<string, ListingPrice>()
+  for (const kw of keywords) {
+    const page = await fetchSearchListings(input, kw)
+    searchUrl = searchUrl || page.searchUrl
+    for (const listing of page.listings) {
+      const dedupe = `${listing.price}|${normalizeTrimToken(listing.title)}`
+      if (!seen.has(dedupe)) seen.set(dedupe, listing)
+    }
+    const matchedSoFar = [...seen.values()].filter((l) =>
+      trim ? listingMatchesTrim(l.title, trim) : true
+    )
+    if (trim && matchedSoFar.length >= MIN_COMPS_TRIMMED) break
+    if (!trim && page.listings.length >= MIN_COMPS) break
   }
+
+  const listings = [...seen.values()]
+  let prices: number[]
+  let minNeeded = MIN_COMPS
+
+  if (trim) {
+    // Never fall back to the unfiltered median — that tanks M-cars toward base trims.
+    const matched = listings.filter((l) => listingMatchesTrim(l.title, trim))
+    prices = matched.map((l) => l.price)
+    minNeeded = MIN_COMPS_TRIMMED
+    if (prices.length < minNeeded && prices.length >= 1) minNeeded = 1
+  } else {
+    prices = listings.map((l) => l.price)
+  }
+
+  if (prices.length < minNeeded) {
+    throw new Error(
+      trim
+        ? `Only ${prices.length} “${trim}” listings in title (need ${MIN_COMPS_TRIMMED}+) — keeping last known worth`
+        : `Only ${prices.length} similar listings (need ${MIN_COMPS}+)`
+    )
+  }
+
   const price = median(prices)
   if (price == null || price <= 0) throw new Error('Could not compute median price')
 
   const fetchedAt = new Date().toISOString()
   setCache(cacheKey, 'equity', Math.round(price * PRICE_SCALE), 'PLN', fetchedAt)
-  metaSet(compsMetaKey(cacheKey), JSON.stringify({ searchUrl, compsCount: prices.length }))
+  metaSet(
+    compsMetaKey(cacheKey),
+    JSON.stringify({ searchUrl, compsCount: prices.length, trim: trim || null })
+  )
 
   return {
     price: Math.round(price),
@@ -196,13 +348,17 @@ async function fetchCompsQuote(input: {
 
 /**
  * Median asking price of similar Otomoto passenger-car listings (make/model/year ±1, optional trim).
+ * Pass `{ force: true }` to skip TTL (manual refetch) — last cache is kept if the live pull fails.
  */
-export async function getOtomotoCompsValue(input: {
-  make: string
-  model: string
-  year: number
-  trim?: string | null
-}): Promise<OtomotoCompsQuote> {
+export async function getOtomotoCompsValue(
+  input: {
+    make: string
+    model: string
+    year: number
+    trim?: string | null
+  },
+  opts?: { force?: boolean }
+): Promise<OtomotoCompsQuote> {
   const make = input.make.trim()
   const model = input.model.trim()
   const year = input.year
@@ -211,54 +367,16 @@ export async function getOtomotoCompsValue(input: {
   }
 
   const cacheKey = cacheKeyFor({ make, model, year, trim: input.trim })
-  if (!isLive('vehicle_otomoto')) {
-    const cached = getCache(cacheKey)
-    if (!cached) return missingQuote()
-    const metaRaw = metaGet(compsMetaKey(cacheKey))
-    let compsCount = 0
-    let searchUrl = ''
-    if (metaRaw) {
-      try {
-        const meta = JSON.parse(metaRaw) as { compsCount?: number; searchUrl?: string }
-        compsCount = meta.compsCount ?? 0
-        searchUrl = meta.searchUrl ?? ''
-      } catch {
-        /* ignore */
-      }
-    }
-    return {
-      price: cached.valueScaled / PRICE_SCALE,
-      currency: cached.quoteCurrency,
-      compsCount,
-      searchUrl,
-      fetchedAt: cached.fetchedAt,
-      stale: true,
-      missing: false
-    }
+  // isLive = enabled + auto. Manual Refetch is allowed whenever the toggle is on.
+  const enabled = getIntegrationsConfig().vehicle_otomoto?.enabled === true
+  if (!(isLive('vehicle_otomoto') || (opts?.force && enabled))) {
+    return quoteFromCache(cacheKey, true) ?? missingQuote()
   }
 
-  const cachedRow = getCache(cacheKey)
-  if (cachedRow && Date.now() - new Date(cachedRow.fetchedAt).getTime() < COMPS_TTL_MS) {
-    const metaRaw = metaGet(compsMetaKey(cacheKey))
-    let compsCount = 0
-    let searchUrl = ''
-    if (metaRaw) {
-      try {
-        const meta = JSON.parse(metaRaw) as { compsCount?: number; searchUrl?: string }
-        compsCount = meta.compsCount ?? 0
-        searchUrl = meta.searchUrl ?? ''
-      } catch {
-        /* ignore */
-      }
-    }
-    return {
-      price: cachedRow.valueScaled / PRICE_SCALE,
-      currency: cachedRow.quoteCurrency,
-      compsCount,
-      searchUrl,
-      fetchedAt: cachedRow.fetchedAt,
-      stale: false,
-      missing: false
+  if (!opts?.force) {
+    const cachedRow = getCache(cacheKey)
+    if (cachedRow && Date.now() - new Date(cachedRow.fetchedAt).getTime() < COMPS_TTL_MS) {
+      return quoteFromCache(cacheKey, false)!
     }
   }
 
@@ -266,19 +384,9 @@ export async function getOtomotoCompsValue(input: {
     return await fetchCompsQuote({ make, model, year, trim: input.trim, cacheKey })
   } catch (err) {
     console.warn(
-      `[otomoto] comps failed for ${make} ${model} ${year}: ${(err as Error).message}`
+      `[otomoto] comps failed for ${make} ${model} ${year}${input.trim ? ` ${input.trim}` : ''}: ${(err as Error).message}`
     )
-    const cached = getCache(cacheKey)
-    if (!cached) return missingQuote()
-    return {
-      price: cached.valueScaled / PRICE_SCALE,
-      currency: cached.quoteCurrency,
-      compsCount: 0,
-      searchUrl: '',
-      fetchedAt: cached.fetchedAt,
-      stale: true,
-      missing: false
-    }
+    return quoteFromCache(cacheKey, true) ?? missingQuote()
   }
 }
 

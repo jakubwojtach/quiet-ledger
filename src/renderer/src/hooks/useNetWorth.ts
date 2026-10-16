@@ -207,6 +207,20 @@ export function useRefreshPrices() {
   })
 }
 
+/** Bust TTL for one holding and pull a live quote from its source. */
+export function useRefreshAssetPrice() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (id: string) => window.api.refreshAssetPrice({ id }),
+    onSuccess: (data, id) => {
+      if (data) qc.setQueryData(queryKeys.asset(id), data)
+      void qc.invalidateQueries({ queryKey: queryKeys.dashboard })
+      void qc.invalidateQueries({ queryKey: queryKeys.netWorthHistory })
+      void qc.invalidateQueries({ queryKey: queryKeys.lots(id) })
+    }
+  })
+}
+
 export function useMonthSummary(month: string) {
   return useQuery({
     queryKey: queryKeys.monthSummary(month),
