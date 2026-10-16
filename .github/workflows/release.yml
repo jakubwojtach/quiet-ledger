@@ -37,27 +37,29 @@ jobs:
       - run: npm run typecheck
       - name: Build signed macOS
         env:
-          # Developer ID Application .p12 (base64) + password
           CSC_LINK: ${{ secrets.CSC_LINK }}
           CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
-          # Notarization (notarytool)
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
-          # Skip signing entirely if cert secret is missing (dev/fork builds)
-          CSC_IDENTITY_AUTO_DISCOVERY: ${{ secrets.CSC_LINK != '' && 'true' || 'false' }}
         run: |
           if [ -z "${CSC_LINK}" ]; then
             echo "::warning::CSC_LINK secret missing — building unsigned macOS (auto-update will not work on Mac)."
             export CSC_IDENTITY_AUTO_DISCOVERY=false
           else
             echo "Signing with Developer ID from CSC_LINK"
+            export CSC_IDENTITY_AUTO_DISCOVERY=true
           fi
           npm run build:mac
       - name: Verify signature
-        if: ${{ secrets.CSC_LINK != '' }}
+        env:
+          CSC_LINK: ${{ secrets.CSC_LINK }}
         run: |
-          APP=$(ls -d dist/mac*/Quiet\ Ledger.app dist/mac-arm64/Quiet\ Ledger.app dist/mac/Quiet\ Ledger.app 2>/dev/null | head -1)
+          if [ -z "${CSC_LINK}" ]; then
+            echo "No CSC_LINK — skip signature verify"
+            exit 0
+          fi
+          APP=$(ls -d dist/mac-arm64/Quiet\ Ledger.app dist/mac/Quiet\ Ledger.app dist/mac*/Quiet\ Ledger.app 2>/dev/null | head -1)
           if [ -z "$APP" ]; then
             echo "App bundle not found under dist/"
             ls -la dist || true
@@ -107,7 +109,6 @@ jobs:
       - name: Build Windows
         shell: bash
         env:
-          # Optional Authenticode cert (base64 .pfx). Separate from Apple secrets.
           WIN_CSC_LINK: ${{ secrets.WIN_CSC_LINK }}
           WIN_CSC_KEY_PASSWORD: ${{ secrets.WIN_CSC_KEY_PASSWORD }}
           CSC_IDENTITY_AUTO_DISCOVERY: false
