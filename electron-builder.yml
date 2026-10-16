@@ -24,11 +24,12 @@ mac:
   gatekeeperAssess: false
   entitlements: build/entitlements.mac.plist
   entitlementsInherit: build/entitlements.mac.plist
-  # Notarize when APPLE_ID + APPLE_APP_SPECIFIC_PASSWORD + APPLE_TEAM_ID are set (CI).
-  notarize: true
+  # Sign in electron-builder; notarize in scripts/notarize-mac.sh (notarytool --wait)
+  # so CI logs show Apple submission progress instead of a silent hang.
+  notarize: false
   target:
-    - dmg
-    - zip
+    - dir
+
   extendInfo:
     NSDocumentsFolderUsageDescription: Quiet Ledger stores optional exports you choose to save.
     NSDownloadsFolderUsageDescription: Quiet Ledger may save downloads you request.
