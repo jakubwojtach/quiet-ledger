@@ -37,6 +37,9 @@ jobs:
       - run: npm run typecheck
       - name: Build signed macOS
         env:
+          # Satisfies electron-builder CI detection; we still pass --publish never
+          # and upload via softprops (stable aliases + unified mac/win release).
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           CSC_LINK: ${{ secrets.CSC_LINK }}
           CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
           APPLE_ID: ${{ secrets.APPLE_ID }}
@@ -109,6 +112,7 @@ jobs:
       - name: Build Windows
         shell: bash
         env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           WIN_CSC_LINK: ${{ secrets.WIN_CSC_LINK }}
           WIN_CSC_KEY_PASSWORD: ${{ secrets.WIN_CSC_KEY_PASSWORD }}
           CSC_IDENTITY_AUTO_DISCOVERY: false
