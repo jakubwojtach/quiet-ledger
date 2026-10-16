@@ -62,6 +62,12 @@ import {
   updateExpenseEntry
 } from '../db/expenses'
 import { emitLocalEvent } from '../hooks/localEvents'
+import {
+  checkForUpdates,
+  getAppVersion,
+  getUpdateStatus,
+  quitAndInstall
+} from '../services/updater'
 
 export function registerIpcHandlers(): void {
   ipcMain.handle(IpcChannels.getDashboard, async () => buildDashboard())
@@ -315,5 +321,13 @@ export function registerIpcHandlers(): void {
       return probeOtomoto()
     }
     throw new Error('This integration cannot be tested yet')
+  })
+
+  ipcMain.handle(IpcChannels.getAppVersion, async () => ({ version: getAppVersion() }))
+  ipcMain.handle(IpcChannels.getUpdateStatus, async () => getUpdateStatus())
+  ipcMain.handle(IpcChannels.checkForUpdates, async () => checkForUpdates())
+  ipcMain.handle(IpcChannels.quitAndInstall, async () => {
+    quitAndInstall()
+    return { ok: true as const }
   })
 }

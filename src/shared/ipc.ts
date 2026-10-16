@@ -38,7 +38,11 @@ export const IpcChannels = {
   setIntegrationSecret: 'networth:setIntegrationSecret',
   hasIntegrationSecret: 'networth:hasIntegrationSecret',
   clearIntegrationSecret: 'networth:clearIntegrationSecret',
-  testIntegration: 'networth:testIntegration'
+  testIntegration: 'networth:testIntegration',
+  getAppVersion: 'app:getVersion',
+  getUpdateStatus: 'app:getUpdateStatus',
+  checkForUpdates: 'app:checkForUpdates',
+  quitAndInstall: 'app:quitAndInstall'
 } as const
 
 export type IpcChannel = (typeof IpcChannels)[keyof typeof IpcChannels]
@@ -391,7 +395,11 @@ export const IpcRequestSchemas = {
   [IpcChannels.setIntegrationSecret]: setIntegrationSecretRequestSchema,
   [IpcChannels.hasIntegrationSecret]: integrationIdRequestSchema,
   [IpcChannels.clearIntegrationSecret]: integrationIdRequestSchema,
-  [IpcChannels.testIntegration]: integrationIdRequestSchema
+  [IpcChannels.testIntegration]: integrationIdRequestSchema,
+  [IpcChannels.getAppVersion]: emptyRequestSchema,
+  [IpcChannels.getUpdateStatus]: emptyRequestSchema,
+  [IpcChannels.checkForUpdates]: emptyRequestSchema,
+  [IpcChannels.quitAndInstall]: emptyRequestSchema
 } as const
 
 export type GetAssetRequest = z.infer<typeof getAssetRequestSchema>

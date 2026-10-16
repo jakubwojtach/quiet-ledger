@@ -1,4 +1,5 @@
-import { useState, type JSX, type ReactNode } from 'react'
+import { useEffect, useState, type JSX, type ReactNode } from 'react'
+import type { UpdateStatus } from '@shared/updates'
 import {
   INTEGRATION_DEFS,
   type IntegrationId,
@@ -59,6 +60,15 @@ export function SettingsPage(): JSX.Element {
   const [active, setActive] = useState<SectionId>('general')
   const [testStatus, setTestStatus] = useState<Partial<Record<IntegrationId, string>>>({})
   const [testingId, setTestingId] = useState<IntegrationId | null>(null)
+  const [appVersion, setAppVersion] = useState(__APP_VERSION__)
+  const [updateStatus, setUpdateStatus] = useState<UpdateStatus>({ state: 'idle' })
+  const [checkingUpdate, setCheckingUpdate] = useState(false)
+
+  useEffect(() => {
+    void window.api.getAppVersion().then((r) => setAppVersion(r.version))
+    void window.api.getUpdateStatus().then(setUpdateStatus)
+    return window.api.onUpdateStatus(setUpdateStatus)
+  }, [])
 
   const toggleInterest = (id: InterestId): void => {
     const on = prefs.interests.includes(id)
@@ -160,6 +170,62 @@ export function SettingsPage(): JSX.Element {
                 <span className="inline-flex h-[22px] items-center rounded-md bg-[var(--surface-2)] px-2 text-[12px] font-medium tabular-nums text-[var(--ink-2)]">
                   PLN · zł
                 </span>
+              }
+            />
+            <SettingsRow
+              title={t('settings.updates')}
+              description={
+                updateStatus.state === 'ready'
+                  ? t('settings.updates.ready', { version: updateStatus.version })
+                  : updateStatus.state === 'downloading'
+                    ? t('settings.updates.downloading', {
+                        percent: Math.round(updateStatus.percent)
+                      })
+                    : updateStatus.state === 'available'
+                      ? t('settings.updates.available', { version: updateStatus.version })
+                      : updateStatus.state === 'not-available'
+                        ? t('settings.updates.upToDate', { version: updateStatus.version })
+                        : updateStatus.state === 'disabled'
+                          ? t('settings.updates.disabled')
+                          : updateStatus.state === 'error'
+                            ? t('settings.updates.error', { detail: updateStatus.message })
+                            : updateStatus.state === 'checking'
+                              ? t('settings.updates.checking')
+                              : t('settings.updates.current', { version: appVersion })
+              }
+              control={
+                updateStatus.state === 'ready' ? (
+                  <Button
+                    size="sm"
+                    className="h-7 rounded-md"
+                    onClick={() => void window.api.quitAndInstall()}
+                  >
+                    {t('settings.updates.restart')}
+                  </Button>
+                ) : (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="h-7 rounded-md"
+                    disabled={
+                      checkingUpdate ||
+                      updateStatus.state === 'checking' ||
+                      updateStatus.state === 'downloading' ||
+                      updateStatus.state === 'disabled'
+                    }
+                    onClick={() => {
+                      setCheckingUpdate(true)
+                      void window.api
+                        .checkForUpdates()
+                        .then(setUpdateStatus)
+                        .finally(() => setCheckingUpdate(false))
+                    }}
+                  >
+                    {checkingUpdate || updateStatus.state === 'checking'
+                      ? t('settings.updates.checking')
+                      : t('settings.updates.check')}
+                  </Button>
+                )
               }
             />
           </div>

@@ -49,6 +49,8 @@ jobs:
           path: |
             dist/*.dmg
             dist/*.zip
+            dist/*.yml
+            dist/*.blockmap
           if-no-files-found: error
 
   windows:
@@ -84,6 +86,8 @@ jobs:
           name: quiet-ledger-windows
           path: |
             dist/*.exe
+            dist/*.yml
+            dist/*.blockmap
           if-no-files-found: error
 
   publish:

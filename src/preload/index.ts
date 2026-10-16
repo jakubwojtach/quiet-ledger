@@ -1,4 +1,4 @@
-import { contextBridge, ipcRenderer } from 'electron'
+import { contextBridge, ipcRenderer, type IpcRendererEvent } from 'electron'
 import {
   IpcChannels,
   IpcRequestSchemas,
@@ -39,6 +39,7 @@ import type {
   ValuedAsset,
   ValuedLot
 } from '../shared/types'
+import type { UpdateStatus } from '../shared/updates'
 
 /**
  * Validate in the preload, but send the *original* payload.
@@ -159,7 +160,26 @@ const api = {
   testIntegration: (
     request: IntegrationIdRequest
   ): Promise<{ ok: true; detail: string }> =>
-    invokeValidated(IpcChannels.testIntegration, request)
+    invokeValidated(IpcChannels.testIntegration, request),
+
+  getAppVersion: (): Promise<{ version: string }> =>
+    invokeValidated(IpcChannels.getAppVersion),
+
+  getUpdateStatus: (): Promise<UpdateStatus> => invokeValidated(IpcChannels.getUpdateStatus),
+
+  checkForUpdates: (): Promise<UpdateStatus> => invokeValidated(IpcChannels.checkForUpdates),
+
+  quitAndInstall: (): Promise<{ ok: true }> => invokeValidated(IpcChannels.quitAndInstall),
+
+  onUpdateStatus: (listener: (status: UpdateStatus) => void): (() => void) => {
+    const handler = (_event: IpcRendererEvent, status: UpdateStatus): void => {
+      listener(status)
+    }
+    ipcRenderer.on('app:updateStatus', handler)
+    return () => {
+      ipcRenderer.removeListener('app:updateStatus', handler)
+    }
+  }
 }
 
 export type NetWorthApi = typeof api

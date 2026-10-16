@@ -5,6 +5,7 @@ import icon from '../../resources/icon.png?asset'
 import { APP_ID, PRODUCT_NAME } from '@shared/dataDirs'
 import { closeDatabase, initDatabase } from './db'
 import { registerIpcHandlers } from './ipc/handlers'
+import { initAutoUpdater } from './services/updater'
 import { migrateLegacyDatabaseIfNeeded, resolveUserDataDir } from './userDataDir'
 
 app.setPath('userData', resolveUserDataDir())
@@ -69,7 +70,7 @@ app.whenReady().then(() => {
   // Dev needs unsafe-inline/eval + ws for Vite/React refresh; prod stays strict.
   const csp = is.dev
     ? "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' data:; connect-src 'self' ws: wss: http://localhost:* http://127.0.0.1:* https://fonts.googleapis.com https://fonts.gstatic.com; font-src 'self' data: https://fonts.gstatic.com"
-    : "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' data:; connect-src 'self' https://fonts.googleapis.com https://fonts.gstatic.com; font-src 'self' data: https://fonts.gstatic.com"
+    : "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' data:; connect-src 'self' https://fonts.googleapis.com https://fonts.gstatic.com https://github.com https://api.github.com https://objects.githubusercontent.com https://release-assets.githubusercontent.com; font-src 'self' data: https://fonts.gstatic.com"
 
   session.defaultSession.webRequest.onHeadersReceived((details, callback) => {
     callback({
@@ -87,6 +88,7 @@ app.whenReady().then(() => {
   initDatabase()
   registerIpcHandlers()
   createWindow()
+  initAutoUpdater()
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow()
