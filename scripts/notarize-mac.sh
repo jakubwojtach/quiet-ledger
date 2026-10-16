@@ -16,6 +16,13 @@ if [[ -z "$APP" ]]; then
   exit 1
 fi
 
+# Must be the .app itself — dirname(mac-arm64) nests Quiet Ledger.app/Quiet Ledger.app
+if [[ ! -d "$APP/Contents/MacOS" ]]; then
+  echo "::error::App bundle missing Contents/MacOS: $APP"
+  ls -la "$APP" || true
+  exit 1
+fi
+
 echo "App: $APP"
 codesign --verify --deep --strict --verbose=2 "$APP"
 
@@ -31,14 +38,12 @@ AUTH=(
 )
 
 echo "Submitting to Apple notary service…"
-# Submit first so we always get a submission id in the logs (first-time teams can take >30m).
 SUBMIT_OUT=$(xcrun notarytool submit "$ZIP" "${AUTH[@]}" --output-format json)
 echo "$SUBMIT_OUT"
 SUB_ID=$(echo "$SUBMIT_OUT" | python3 -c "import sys,json; print(json.load(sys.stdin)['id'])")
 echo "Submission id: $SUB_ID"
 echo "Waiting for Apple (first notarization for a team can take 30–90+ minutes)…"
 
-# 90m wait — notarytool exit 124 = timeout while still In Progress
 set +e
 xcrun notarytool wait "$SUB_ID" "${AUTH[@]}" --timeout 90m
 WAIT_RC=$?
@@ -55,8 +60,30 @@ echo "Stapling notarization ticket…"
 xcrun stapler staple "$APP"
 xcrun stapler validate "$APP"
 
+# --prepackaged must be the .app path, NOT its parent folder.
+# Parent (dist/mac-arm64) produced Quiet Ledger.app/Quiet Ledger.app/… → “damaged”.
 echo "Rebuilding DMG/ZIP with stapled app…"
-npx electron-builder --mac dmg zip --prepackaged "$(dirname "$APP")" --publish never
+npx electron-builder --mac dmg zip --prepackaged "$APP" --publish never
+
+# Guard against nested / empty bundles shipping again
+DMG=$(ls -1 dist/*.dmg | head -1)
+MOUNT=$(mktemp -d)
+hdiutil attach "$DMG" -nobrowse -readonly -mountpoint "$MOUNT"
+INNER="$MOUNT/Quiet Ledger.app"
+if [[ ! -x "$INNER/Contents/MacOS/Quiet Ledger" ]]; then
+  echo "::error::Packaged DMG app is broken (missing executable). Nested bundle?"
+  find "$MOUNT" -maxdepth 4 -type d | head -40
+  hdiutil detach "$MOUNT" || true
+  exit 1
+fi
+if [[ -d "$INNER/Quiet Ledger.app" ]]; then
+  echo "::error::Nested Quiet Ledger.app inside Quiet Ledger.app — refusing to ship"
+  hdiutil detach "$MOUNT" || true
+  exit 1
+fi
+codesign --verify --deep --strict "$INNER"
+xcrun stapler validate "$INNER"
+hdiutil detach "$MOUNT"
 
 echo "Notarization complete (submission $SUB_ID)."
 rm -rf "$STAGING"
